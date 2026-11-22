@@ -1,0 +1,43 @@
+/* Flugsimulator – Aussehen von Menü, Meldungen und den Knöpfen auf dem Bildschirm */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1318; color: #e9eef2; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+#gl, #hud { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#hud { pointer-events: none; }
+#meldungen { position: fixed; top: 78px; left: 50%; transform: translateX(-50%); width: min(92vw, 680px); display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 5; }
+.meldung { background: rgba(14, 19, 24, 0.82); border-left: 5px solid #46dcff; padding: 9px 14px; border-radius: 8px; font-size: 17px; line-height: 1.3; transition: opacity 0.6s; }
+.meldung.gut { border-color: #5fd07a; } .meldung.warn { border-color: #ffc43c; } .meldung.schlimm { border-color: #ef5a4c; background: rgba(70, 14, 10, 0.88); } .meldung.weg { opacity: 0; }
+#pause { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; font-size: 48px; font-weight: 700; background: rgba(8, 12, 16, 0.5); z-index: 6; text-align: center; }
+#pause.an { display: flex; } #pause small { font-size: 18px; font-weight: 400; }
+#menue { position: fixed; inset: 0; background: rgba(8, 12, 16, 0.72); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 18px 12px 40px; z-index: 10; touch-action: pan-y; }
+#menue.zu { display: none; }
+.karte { width: min(96vw, 760px); background: #17202a; border-radius: 16px; padding: 20px 24px 26px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+.karte h1 { margin: 0; font-size: 30px; } .karte h2 { font-size: 15px; margin: 16px 0 6px; color: #9fb0bd; text-transform: uppercase; letter-spacing: 0.06em; }
+.unter { margin: 4px 0 0; color: #9fb0bd; } .hinweis { margin: 8px 0 0; color: #cfe0ec; min-height: 1.3em; }
+.wahl { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; color: #e9eef2; background: #24313f; border: 2px solid #33475a; border-radius: 10px; padding: 10px 14px; font-size: 16px; cursor: pointer; }
+button.an { background: #1f5fae; border-color: #46dcff; }
+#bLos { display: block; width: 100%; margin: 22px 0 14px; padding: 16px; font-size: 22px; font-weight: 700; background: #2a8a4a; border-color: #5fd07a; }
+#handy { display: none; gap: 16px; margin-top: 12px; background: #0f161d; border-radius: 12px; padding: 12px; align-items: center; }
+#handy.an { display: flex; } #handyQr svg { background: #fff; border-radius: 8px; display: block; } #handyAdr { word-break: break-all; color: #46dcff; user-select: text; -webkit-user-select: text; } #handy p { margin: 4px 0; }
+details { margin-top: 10px; color: #cfe0ec; } summary { cursor: pointer; padding: 6px 0; }
+#tasten div { display: flex; gap: 12px; padding: 3px 0; } #tasten b { min-width: 150px; color: #ffc43c; }
+ol { margin: 6px 0; padding-left: 22px; line-height: 1.45; }
+
+/* ---- Knöpfe auf dem Bildschirm */
+.touch { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
+.touch > div { position: absolute; pointer-events: none; display: flex; gap: 10px; }
+.touch .knopf, .touch .schub, .touch .tstick { pointer-events: auto; }
+.t-links { left: max(14px, env(safe-area-inset-left)); bottom: 46%; align-items: flex-end; }
+.t-rechts { right: max(14px, env(safe-area-inset-right)); bottom: 43%; align-items: flex-end; }
+.t-unten { left: 50%; transform: translateX(-50%); bottom: 41%; }
+.t-oben { right: 12px; top: 8px; }
+body:not(.cockpit-touch) .t-links, body:not(.cockpit-touch) .t-rechts { bottom: 46%; }
+.t-spalte { display: flex; flex-direction: column; gap: 8px; }
+.knopf { background: rgba(20, 28, 36, 0.72); border: 2px solid rgba(160, 190, 210, 0.45); border-radius: 12px; padding: 12px 12px; font-size: 15px; text-align: center; min-width: 96px; }
+.knopf.an { background: rgba(70, 220, 255, 0.45); } .knopf.blau { border-color: #46dcff; } .knopf.rot { border-color: #ef5a4c; } .knopf.klein { min-width: 0; padding: 8px 10px; font-size: 14px; } .knopf.pedal { min-width: 130px; }
+.schub { position: relative; width: 62px; height: 34vh; min-height: 150px; background: rgba(20, 28, 36, 0.72); border: 2px solid rgba(160, 190, 210, 0.45); border-radius: 14px; }
+.schub i { position: absolute; left: 22px; right: 22px; bottom: 14px; background: #5fd07a; border-radius: 6px; }
+.schub b { position: absolute; left: 6px; right: 6px; height: 26px; background: #e9eef2; border-radius: 8px; }
+.schub em { position: absolute; top: -24px; left: -20px; right: -20px; text-align: center; font-style: normal; font-size: 14px; text-shadow: 0 1px 3px #000; }
+.tstick { width: 150px; height: 150px; border-radius: 50%; background: rgba(20, 28, 36, 0.55); border: 2px solid rgba(160, 190, 210, 0.45); position: relative; }
+.tstick.an { border-color: #46dcff; } .tknob { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; background: rgba(233, 238, 242, 0.85); }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1318">
+<title>Flugsimulator</title>
+<link rel="stylesheet" href="css/stil.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
+<div id="meldungen"></div>
+<div id="pause">Pause<br><small>P = weiter · N = Menü</small></div>
+<div id="menue">
+  <div class="karte">
+    <h1>Flugsimulator</h1>
+    <p class="unter">Stufe 1: Fliegen lernen mit der Lerche 172 am Flugplatz Lerchenfeld</p>
+    <h2>Wo geht es los?</h2><div class="wahl" id="wStart"></div><p id="startText" class="hinweis"></p>
+    <h2>Wetter</h2><div class="wahl" id="wWetter"></div>
+    <h2>Hilfen</h2><div class="wahl" id="wHilfe"></div>
+    <h2>Ansicht</h2><div class="wahl" id="wKamera"></div>
+    <h2>Steuerung</h2>
+    <div class="wahl"><button id="bHandy">Handy als Steuerknüppel verbinden</button><button id="bNeigen">Dieses Gerät neigen</button><button id="bTon">Ton</button></div>
+    <div id="handy"><div id="handyQr"></div><div><p>Mit der Handy-Kamera den Code scannen oder diese Adresse öffnen:</p><p id="handyAdr"></p><p>Code: <b id="handyCode"></b> <span id="handyStand"></span></p></div></div>
+    <button id="bLos">Los geht's</button>
+    <details><summary>Tasten am Computer</summary><div id="tasten"></div></details>
+    <details><summary>So gelingt die erste Landung</summary>
+      <ol>
+        <li>Im Anflug Klappen ausfahren und das Tempo bei 65 bis 70 kn halten. Die Nase regelt das Tempo, das Gas regelt die Höhe.</li>
+        <li>Auf die vier Lichter links neben der Bahn schauen: zwei weiß und zwei rot ist richtig. Mehr rot = zu tief (Gas geben), mehr weiß = zu hoch (Gas wegnehmen).</li>
+        <li>Über dem Bahnanfang das Gas ganz herausnehmen.</li>
+        <li>Kurz über dem Boden die Nase langsam hochnehmen, bis das Flugzeug nicht mehr sinkt, und es ausschweben lassen. Die Haupträder setzen zuerst auf.</li>
+        <li>Mit dem Seitenruder auf der Mittellinie bleiben und bremsen.</li>
+      </ol>
+    </details>
+  </div>
+</div>
+<script src="lib/three.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

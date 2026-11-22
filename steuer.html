@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Steuerknüppel – Flugsimulator</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; touch-action: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #10161d; color: #e9eef3; font: 16px/1.3 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; z-index: 5; background: #10161d; }
+  #start h1 { margin: 0; font-size: 26px; }
+  #start p { margin: 0; max-width: 30em; color: #a9b6c2; }
+  #start input { font: inherit; font-size: 28px; width: 5.2em; text-align: center; letter-spacing: .2em; text-transform: uppercase; padding: 8px; border-radius: 10px; border: 2px solid #3b4a59; background: #1a232d; color: #fff; -webkit-user-select: text; user-select: text; touch-action: auto; }
+  button { font: inherit; color: #fff; background: #26323f; border: 2px solid #3b4a59; border-radius: 12px; padding: 0; }
+  button.unten, button:active { background: #2f7fd1; border-color: #6db3f5; }
+  #bLos { font-size: 22px; padding: 14px 34px; background: #2f7fd1; border-color: #6db3f5; }
+  #hochkant { display: none; color: #ffc861; }
+  @media (orientation: portrait) { #hochkant { display: block; } }
+  #brett { position: fixed; inset: 0; display: grid; grid-template-columns: 22% 1fr 22%; grid-template-rows: auto 1fr auto; gap: 8px;
+           padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  #kopf { grid-column: 1 / 4; display: flex; gap: 8px; align-items: center; }
+  #stand { flex: 1; font-size: 14px; color: #a9b6c2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #stand.gut { color: #7be08a; } #stand.schlecht { color: #ff8a7a; }
+  #kopf button { padding: 8px 12px; font-size: 15px; }
+  .spalte { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .spalte button { flex: 1; font-size: 17px; min-height: 0; }
+  #mitte { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; }
+  #zahlen { display: flex; gap: 22px; font-variant-numeric: tabular-nums; }
+  #zahlen div { text-align: center; } #zahlen b { display: block; font-size: 34px; line-height: 1; } #zahlen small { color: #a9b6c2; }
+  #warn { height: 1.4em; font-weight: 700; color: #ff8a7a; }
+  #kreuz { position: relative; width: min(38vh, 30vw); aspect-ratio: 1; border: 2px solid #3b4a59; border-radius: 14px; background:
+           linear-gradient(#3b4a59, #3b4a59) 50% 0 / 1px 100% no-repeat, linear-gradient(#3b4a59, #3b4a59) 0 50% / 100% 1px no-repeat, #1a232d; }
+  #punkt { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px; border-radius: 50%; background: #ffc861; box-shadow: 0 0 8px #ffc861; }
+  #gasFeld { position: relative; flex: 3; border: 2px solid #3b4a59; border-radius: 12px; background: #1a232d; overflow: hidden; min-height: 0; }
+  #gasBalken { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(#f0a53a, #b9541e); }
+  #gasText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; text-shadow: 0 1px 3px #000; pointer-events: none; }
+  #fuss { grid-column: 1 / 4; display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; height: 19vh; min-height: 54px; }
+  #fuss button { font-size: 18px; }
+</style>
+</head>
+<body>
+<div id="start">
+  <h1>✈️ Steuerknüppel</h1>
+  <p>Halte das Handy quer wie ein Lenkrad. Drehen = Querruder, zu dir kippen = ziehen (Nase hoch), von dir weg = drücken.</p>
+  <p id="hochkant">Bitte das Handy quer drehen.</p>
+  <input id="code" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+  <button id="bLos">Los geht's</button>
+  <p id="startStand"></p>
+</div>
+<div id="brett">
+  <div id="kopf">
+    <div id="stand">…</div>
+    <button id="bMitte">🎯 Mitte</button>
+    <button id="bStufe">🎚 3</button>
+    <button id="bKamera">🎥</button>
+    <button id="bPause">⏸</button>
+  </div>
+  <div class="spalte">
+    <button id="bKlEin">Klappen ▲ ein</button>
+    <button id="bKlAus">Klappen ▼ aus</button>
+    <button id="bTrR">Trimm ▲ Nase runter</button>
+    <button id="bTrH">Trimm ▼ Nase hoch</button>
+  </div>
+  <div id="mitte">
+    <div id="zahlen">
+      <div><b id="zTempo">–</b><small>Knoten</small></div>
+      <div><b id="zHoehe">–</b><small>Fuß über Grund</small></div>
+      <div><b id="zKlappen">0°</b><small>Klappen</small></div>
+    </div>
+    <div id="warn"></div>
+    <div id="kreuz"><div id="punkt"></div></div>
+  </div>
+  <div class="spalte">
+    <div id="gasFeld"><div id="gasBalken"></div><div id="gasText">Gas 0 %</div></div>
+  </div>
+  <div id="fuss">
+    <button id="bLinks">◀ Seitenruder links</button>
+    <button id="bBremse">Bremse</button>
+    <button id="bRechts">Seitenruder rechts ▶</button>
+  </div>
+</div>
+<script type="module" src="js/steuerseite.js"></script>
+</body>
+</html>
