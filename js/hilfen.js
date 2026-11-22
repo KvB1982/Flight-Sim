@@ -9,30 +9,35 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const STUFEN = ['leicht', 'mittel', 'echt'];
 export const STUFEN_TEXT = { leicht: 'Leicht: Seitenruder, Trimmung und Schräglage mit Hilfe', mittel: 'Mittel: nur das Seitenruder mit Hilfe', echt: 'Echt: alles selbst' };
 
+// Was sich die Hilfe von Bild zu Bild merkt, liegt hier und nicht im Flugzeug: Die Physik soll davon nichts wissen.
+const MERK = new WeakMap();
+const merke = f => { let h = MERK.get(f); if (!h) MERK.set(f, h = {}); return h; };
+
 // e = Eingabe des Piloten (wird nicht verändert), f = Flugzeug. Gibt die Eingabe zurück, die wirklich ans Flugzeug geht.
 export function mitHilfe(e, f, stufe, dt) {
   const a = { hoehe: e.hoehe, quer: e.quer, seite: e.seite, gas: e.gas, bremse: e.bremse };
   if (stufe === 'echt') return a;
+  const h = merke(f);
   if (f.amBoden) {
     // Am Boden lenkt der Knüppel mit: Drehen oder Neigen nach rechts = Bugrad und Seitenruder nach rechts.
     // Lässt man los, merkt sich die Hilfe die Richtung und hält sie – auch gegen den Propeller, der die Nase nach links zieht.
     if (Math.abs(a.seite) < 0.05) {
       const rechtsherum = -f.w[1];                                   // so schnell dreht die Nase gerade nach rechts
-      if (Math.abs(a.quer) > 0.05 || f.hilfeKurs === undefined) { f.hilfeKurs = f.kurs + rechtsherum * 0.4; f.hilfeMerk = 0; a.seite = a.quer; }
+      if (Math.abs(a.quer) > 0.05 || h.kurs === undefined) { h.kurs = f.kurs + rechtsherum * 0.4; h.merk = 0; a.seite = a.quer; }
       else {
-        let fehlt = f.hilfeKurs - f.kurs; while (fehlt > Math.PI) fehlt -= 2 * Math.PI; while (fehlt < -Math.PI) fehlt += 2 * Math.PI;
-        f.hilfeMerk = clamp((f.hilfeMerk || 0) + fehlt * 2.5 * dt, -0.6, 0.6);
-        a.seite = clamp(4 * fehlt - 1.2 * rechtsherum + f.hilfeMerk, -1, 1);
+        let fehlt = h.kurs - f.kurs; while (fehlt > Math.PI) fehlt -= 2 * Math.PI; while (fehlt < -Math.PI) fehlt += 2 * Math.PI;
+        h.merk = clamp((h.merk || 0) + fehlt * 2.5 * dt, -0.6, 0.6);
+        a.seite = clamp(4 * fehlt - 1.2 * rechtsherum + h.merk, -1, 1);
       }
     }
     // Beim Rollen und Starten bleiben die Flügel gerade; im Seitenwind hält die Hilfe die Fläche unten
     a.quer = clamp(-f.roll * 3 - f.w[2] * 0.6, -1, 1);
   } else if (Math.abs(a.seite) < 0.05) {
-    f.hilfeKurs = undefined;
+    h.kurs = undefined;
     // In der Luft: so viel Seitenruder, dass das Flugzeug nicht schiebt (die Kugel bleibt in der Mitte).
     // Was dauerhaft fehlt (der Propeller zieht die Nase nach links), merkt sich die Hilfe und hält es von allein.
-    f.hilfeSeite = clamp((f.hilfeSeite || 0) + f.schiebe * 1.5 * dt, -0.5, 0.5);
-    a.seite = clamp(2.2 * f.schiebe + f.hilfeSeite + 0.35 * a.quer, -1, 1);
+    h.seite = clamp((h.seite || 0) + f.schiebe * 1.5 * dt, -0.5, 0.5);
+    a.seite = clamp(2.2 * f.schiebe + h.seite + 0.35 * a.quer, -1, 1);
   }
   if (stufe === 'leicht' && !f.amBoden) {
     // Trimmung wandert langsam dem Knüppel nach: Wer die Nase lange irgendwo hinhält, muss bald nicht mehr drücken oder ziehen.
@@ -48,8 +53,8 @@ export function mitHilfe(e, f, stufe, dt) {
     const grenze = 35 * Math.PI / 180, rollRate = f.w[2] * Math.sign(f.roll);    // rollRate + = wird noch schräger
     if (Math.sign(a.quer) === Math.sign(f.roll) && a.quer !== 0) a.quer = Math.sign(a.quer) * Math.min(Math.abs(a.quer), clamp((grenze - Math.abs(f.roll)) * 4 - rollRate * 0.6, -1, 1));
     if (Math.abs(e.quer) < 0.06) {
-      f.hilfeQuer = clamp((f.hilfeQuer || 0) - f.roll * 0.8 * dt, -0.3, 0.3);        // was dauerhaft schief zieht, wird ausgeglichen
-      a.quer = clamp(-f.roll * 1.2 - f.w[2] * 0.5 + f.hilfeQuer, -0.5, 0.5);
+      h.quer = clamp((h.quer || 0) - f.roll * 0.8 * dt, -0.3, 0.3);        // was dauerhaft schief zieht, wird ausgeglichen
+      a.quer = clamp(-f.roll * 1.2 - f.w[2] * 0.5 + h.quer, -0.5, 0.5);
     }
 
     // In der Kurve etwas mitziehen, sonst fällt die Nase

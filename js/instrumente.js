@@ -99,7 +99,7 @@ function vario(g, x, y, r, f) {
   striche(g, r, w(-2000), w(2000), 8, 0.13); striche(g, r, w(-2000), w(2000), 40, 0.06, 0.012);
   for (const v of [-20, -15, -10, -5, 0, 5, 10, 15, 20]) zahl(g, r, w(v * 100), String(Math.abs(v)), 0.66, 0.16);
   g.fillStyle = '#8f98a3'; g.font = `${r * 0.11}px sans-serif`; g.fillText('STEIGEN', -r * 0.1, -r * 0.3); g.fillText('SINKEN', -r * 0.1, r * 0.2);
-  zeiger(g, r, w(f.steig / FT * 60)); g.restore();
+  zeiger(g, r, w(steigZeigt(f) / FT * 60)); g.restore();
 }
 function drehzahl(g, x, y, r, f) {
   rund(g, x, y, r, 'U/min ×100');
@@ -114,12 +114,23 @@ function balken(g, x, y, w, h, f) {
   g.save(); g.translate(x, y); g.font = `${h * 0.105}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
   const feld = (i, name, male) => { const bx = (i - 1) * w * 0.34; g.fillStyle = '#0a0b0c'; g.beginPath(); g.roundRect(bx - w * 0.14, -h * 0.42, w * 0.28, h * 0.7, 6); g.fill(); g.strokeStyle = '#3a3e44'; g.lineWidth = 2; g.stroke(); g.fillStyle = '#8f98a3'; g.fillText(name, bx, h * 0.4); g.save(); g.translate(bx, -h * 0.07); male(w * 0.2, h * 0.56); g.restore(); };
   feld(0, 'KLAPPEN', (bw, bh) => { for (let i = 0; i < 4; i++) { g.fillStyle = i === f.klappenStufe ? '#fff' : '#555'; g.fillText(String(f.T.klappen[i]) + '°', -bw * 0.25, -bh * 0.4 + i * bh * 0.27); } g.fillStyle = '#ffb020'; g.fillRect(bw * 0.2, -bh * 0.47 + f.klappen * bh * 0.8, bw * 0.35, bh * 0.1); });
-  feld(1, 'TRIMMUNG', (bw, bh) => { g.fillStyle = '#555'; g.fillRect(-2, -bh * 0.45, 4, bh * 0.9); g.fillStyle = '#2fbf4f'; g.fillRect(-bw * 0.3, -3, bw * 0.6, 6); g.fillStyle = '#fff'; g.fillRect(-bw * 0.4, -f.trimm * bh * 0.42 - 4, bw * 0.8, 8); g.fillStyle = '#8f98a3'; g.font = `${bh * 0.16}px sans-serif`; g.fillText('hoch', bw * 0.0, -bh * 0.62 + bh * 1.0 * 0); });
+  feld(1, 'TRIMMUNG', (bw, bh) => { g.fillStyle = '#555'; g.fillRect(-2, -bh * 0.45, 4, bh * 0.9); g.fillStyle = '#2fbf4f'; g.fillRect(-bw * 0.3, 0.3 * bh * 0.42 - 3, bw * 0.6, 6); /* grüne Marke = Trimmung für den Start (−0,3) */ g.fillStyle = '#fff'; g.fillRect(-bw * 0.4, -f.trimm * bh * 0.42 - 4, bw * 0.8, 8); g.fillStyle = '#8f98a3'; g.font = `${bh * 0.16}px sans-serif`; g.fillText('hoch', bw * 0.0, -bh * 0.62 + bh * 1.0 * 0); });
   feld(2, 'TANK', (bw, bh) => { const voll = f.sprit / f.T.tank; g.fillStyle = '#333'; g.fillRect(-bw * 0.25, -bh * 0.45, bw * 0.5, bh * 0.9); g.fillStyle = voll < 0.15 ? '#e62e2e' : '#3aa0e0'; g.fillRect(-bw * 0.25, bh * 0.45 - voll * bh * 0.9, bw * 0.5, voll * bh * 0.9); });
   g.restore();
 }
 
 // ---------------------------------------------------------------- Instrumentenbrett (Cockpit)
+// Echte Zeiger sind träge: Das Variometer braucht gut eine Sekunde, bis es zeigt, was das Flugzeug schon tut.
+// Deshalb fliegt man nach dem Horizont und schaut nur zur Kontrolle auf das Variometer.
+const TRAEGE = new WeakMap();
+function steigZeigt(f) {
+  let z = TRAEGE.get(f);
+  if (!z) TRAEGE.set(f, z = { t: f.t, steig: f.steig });
+  const dt = f.t - z.t; z.t = f.t;
+  if (dt < 0 || dt > 1) z.steig = f.steig; else z.steig += (f.steig - z.steig) * Math.min(1, dt / 1.2);
+  return z.steig;
+}
+
 export function maleBrett(g, W, H, f) {
   const hoch = H * BRETT_ANTEIL, oben = H - hoch;
   g.fillStyle = '#23262b'; g.beginPath(); g.moveTo(0, H); g.lineTo(0, oben + hoch * 0.1); g.quadraticCurveTo(W / 2, oben - hoch * 0.07, W, oben + hoch * 0.1); g.lineTo(W, H); g.closePath(); g.fill();
@@ -149,7 +160,7 @@ export function maleHud(g, W, H, f) {
   g.fillStyle = f.abriss > 0.3 ? '#ff5a4a' : '#fff'; g.font = `bold ${24 * s}px sans-serif`; g.textAlign = 'right'; g.fillText(String(Math.round(kn)), bx + 62 * s, by + 1);
   g.fillStyle = '#9fb0bd'; g.font = `${12 * s}px sans-serif`; g.textAlign = 'left'; g.fillText('kn', bx + 4 * s, by - bh / 2 - 10 * s);
   // rechts: Höhe und Steigen/Sinken
-  const rx = W - 110 * s, ft = f.p[1] / FT, fpm = f.steig / FT * 60;
+  const rx = W - 110 * s, ft = f.p[1] / FT, fpm = steigZeigt(f) / FT * 60;
   kasten(rx, by - bh / 2, 92 * s, bh);
   g.save(); g.beginPath(); g.rect(rx, by - bh / 2, 92 * s, bh); g.clip();
   g.fillStyle = '#cfd8e0'; g.font = `${14 * s}px sans-serif`; g.textAlign = 'left';

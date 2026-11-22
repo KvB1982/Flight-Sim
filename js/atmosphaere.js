@@ -22,7 +22,10 @@ export function neueLuft(w) {
       const hoch = 0.65 + 0.35 * Math.min(1, h / 120);              // am Boden bremst die Erde den Wind
       const v = (w.kn + w.boe * Math.max(0, welle(t, 1))) * KN * hoch;
       const u = w.unruhe * Math.min(1, 0.4 + h / 150);
-      return [rx * v + u * 0.9 * welle(t, 2.3), u * 0.7 * welle(t, 3.1), rz * v + u * 0.9 * welle(t, 1.7)];
+      // Unruhe: langsame Wellen und dazu kleine Wirbel, die an jedem Ort anders sind. Fliegt man hindurch, rüttelt es,
+      // und weil der linke Flügel einen anderen Wirbel trifft als der rechte, wackelt das Flugzeug auch ums Rollen.
+      const wirbel = Math.sin(0.13 * p[0] + 0.09 * p[2] + 0.7 * t) * 0.6 + Math.sin(0.31 * p[0] - 0.05 * p[2] + 1.3 * t + 2) * 0.4;
+      return [rx * v + u * 0.9 * welle(t, 2.3), u * (0.6 * welle(t, 3.1) + 0.6 * wirbel), rz * v + u * 0.9 * welle(t, 1.7)];
     },
     // für die Anzeige: mittlerer Wind
     text: w.kn ? `Wind aus ${String(Math.round(w.aus / 10) * 10).padStart(3, '0')}° mit ${w.kn} kn` + (w.boe > 4 ? `, Böen ${w.kn + w.boe}` : '') : 'Windstill'

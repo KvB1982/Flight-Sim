@@ -1,0 +1,24 @@
+# Bei jedem Pull Request und jedem Stand auf main laufen die drei Prüfwerkzeuge von allein.
+# Sie brauchen nur Node, keine Pakete und keinen Browser.
+name: Prüfwerkzeuge
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Flugphysik nachmessen
+        run: node tools/flugtest.mjs
+      - name: Flugschule – alle Lektionen
+        run: node tools/schule.mjs
+      - name: Der ganze Flug
+        run: node tools/ablauf.mjs
