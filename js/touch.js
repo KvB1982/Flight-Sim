@@ -58,6 +58,7 @@ export function baueTouch(eingabe, tu) {
   knopf(oben, 'Ansicht', 'klein', () => tu.kamera());
   const neig = knopf(oben, 'Neigen: aus', 'klein', () => tu.neigen());
   knopf(oben, 'Mitte', 'klein', () => tu.mitte());
+  knopf(oben, 'Flugweg', 'klein', () => tu.weg());
   knopf(oben, 'Hilfen', 'klein', () => eingabe.druecke('hilfe'));
   knopf(oben, 'Menü', 'klein', () => tu.menue());
   return {
