@@ -67,3 +67,28 @@ body.in-schule #meldungen { top: 172px; }
 #sTipp { align-self: flex-start; background: rgba(14, 19, 24, 0.78); border-radius: 8px; padding: 4px 12px; font-size: 13px; color: #ffe2a0; } #sTipp:empty { display: none; }
 body.mit-touch #schule { top: calc(max(8px, env(safe-area-inset-top)) + 46px); width: min(70vw, 660px); } body.mit-touch.in-schule #meldungen { top: 215px; }
 @media (max-height: 500px) { #schule, body.mit-touch #schule { width: min(52vw, 660px); } #sLehrer { font-size: 12px; padding: 5px 9px; } #sAufgabe { font-size: 12px; padding: 4px 9px; } #sTipp { font-size: 11px; } #sKopf { display: none; } }
+
+/* ---- Der ganze Flug: Checkliste am Rand, Schalterbrett, Kasten beim Rundgang */
+#bGanz { display: block; width: 100%; margin: 12px 0 8px; padding: 14px; font-size: 20px; font-weight: 700; background: #1f5fae; border-color: #46dcff; }
+#buchListe div, #buchListe p { padding: 5px 0; border-bottom: 1px solid #26333f; font-size: 14px; margin: 0; }
+#liste { position: fixed; right: max(10px, env(safe-area-inset-right)); top: 64px; width: min(300px, 34vw); display: none; flex-direction: column; background: rgba(14, 19, 24, 0.84); border-radius: 10px; padding: 8px 10px; z-index: 5; font-size: 14px; }
+#liste.an { display: flex; }
+#lKopf { font-weight: 700; color: #ffe08a; cursor: pointer; } #lWo { color: #9fb0bd; font-size: 12px; margin: 2px 0 4px; } #lWo:empty { display: none; }
+.punkt { padding: 3px 0; line-height: 1.25; } .punkt.ok { color: #7fd694; } .punkt.tipp { cursor: pointer; background: rgba(31, 95, 174, 0.55); border-radius: 6px; padding: 5px 6px; margin: 2px 0; }
+#lBuch { margin-top: 6px; background: #2a8a4a; border-color: #5fd07a; font-weight: 700; }
+#brett { position: fixed; left: 50%; bottom: max(8px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(96vw, 760px); display: none; flex-direction: column; gap: 8px; background: rgba(23, 32, 42, 0.96); border: 2px solid #33475a; border-radius: 14px; padding: 10px 12px 12px; z-index: 7; }
+#brett.an { display: flex; }
+#bKopf { display: flex; align-items: center; gap: 12px; } #bKopf span { flex: 1; color: #9fb0bd; font-size: 14px; }
+#bSchalter { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.schalter { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 10px; text-align: left; } .schalter b { font-size: 14px; } .schalter span { font-size: 13px; color: #b8c9d6; }
+.schalter.an { background: #2a6a3e; border-color: #5fd07a; } .schalter.an span { color: #d8f5df; }
+#stelle { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(92vw, 620px); display: none; flex-direction: column; gap: 6px; background: rgba(14, 19, 24, 0.86); border-radius: 12px; padding: 10px 14px 12px; z-index: 6; }
+#stelle.an { display: flex; } #stelle p { margin: 0; color: #cfe0ec; } #stelle p:empty { display: none; } #stName { color: #ffe08a; }
+#stelle button:disabled { opacity: 0.55; }
+body.mit-touch #liste { top: 60px; } 
+
+/* Im ganzen Flug rücken die Meldungen nach links, damit sie nicht unter der Checkliste liegen */
+body.mit-liste #meldungen { left: max(10px, env(safe-area-inset-left)); transform: none; width: min(680px, calc(100vw - min(300px, 34vw) - 34px)); }
+.schalter { min-width: 0; } .schalter b { overflow-wrap: anywhere; hyphens: auto; }
+#lBuch.blass { background: #3a4652; border-color: #6c7b88; font-weight: 400; }
+@media (max-height: 500px) { #liste { font-size: 12px; top: 50px; max-height: calc(100vh - 60px); overflow-y: auto; } body.mit-touch #liste { top: 50px; } body.mit-liste #meldungen { font-size: 13px; } #stelle { bottom: 6px; padding: 6px 10px 8px; } }

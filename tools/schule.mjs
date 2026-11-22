@@ -12,7 +12,8 @@ import { Pilot, GRAD, wickel } from './pilot.mjs';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 // Im Test-Browser kann man sich die Piloten auch holen (import('/tools/schule.mjs')) und über __flugsim.pilot fliegen lassen.
-const imKnoten = typeof process !== 'undefined' && !!process.argv, argumente = imKnoten ? process.argv : [];
+// Nur wenn diese Datei selbst gestartet wurde, fliegt sie die Lektionen (tools/ablauf.mjs holt sich hier nur die Piloten).
+const imKnoten = typeof process !== 'undefined' && !!process.argv && /schule\.mjs$/.test(process.argv[1] || ''), argumente = imKnoten ? process.argv : [];
 const laut = argumente.includes('laut'), nur = (argumente.find(a => a.startsWith('nur=')) || '').slice(4);
 const welt = { wind: () => [0, 0, 0], boden: bodenHoehe };
 const richtungZu = (s, x, z) => Math.atan2(-(x - s.x), z - s.z);          // Kurs von hier zu einem Punkt
@@ -92,7 +93,7 @@ export const PILOTEN = {
 };
 PILOTEN.allein = PILOTEN.runde;
 
-export { Pilot };
+export { Pilot, amBodenLenken, mittellinie, richtungZu };
 // ---- alle Lektionen fliegen
 let schlecht = 0;
 for (const l of imKnoten ? LEKTIONEN : []) {

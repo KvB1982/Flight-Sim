@@ -132,7 +132,7 @@ export function schritt(f, e, dt, welt) {
   // Motor: Leistung hängt an der Drehzahl, der Propeller macht daraus Schub
   const dreh = f.motorAn && f.sprit > 0 ? T.leerlauf + (T.vollDreh - T.leerlauf) * f.gas : 0;
   const hoehenFaktor = clamp(1.132 * rho / RHO0 - 0.132, 0, 1);
-  const leistung = dreh > 0 ? T.leistung * Math.pow(dreh / T.vollDreh, 3) * hoehenFaktor : 0;
+  const leistung = dreh > 0 ? T.leistung * Math.pow(dreh / T.vollDreh, 3) * hoehenFaktor * (f.motorKraft ?? 1) : 0;      // motorKraft: Vereisung und Schäden (systeme.js)
   const vVor = Math.max(0, vl[2]);
   let schub = leistung * T.propGut / Math.hypot(vVor, T.propV0);
   schub -= stau * 0.2 * Math.max(0, 1 - 3 * leistung / T.leistung);            // ein langsam drehender Propeller bremst ein wenig
