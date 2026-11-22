@@ -5,7 +5,7 @@ Familien-Lernprojekt wie die Geschwister-Spiele Powershot, Frontline, Rennspiel,
 Repository: https://github.com/KvB1982/Flight-Sim · Arbeitstitel „Kapitän“.
 Das Konzept in neun Stufen ist ein Claude Doc: https://claude.ai/artifact/ByjuAPggzH9R5qRKWdBvHR
 
-**Stand: Stufe 1** – das Schulflugzeug „Lerche 172“ (ausgedacht, einem kleinen Hochdecker mit Bugrad nachempfunden), ein Flugplatz, alle Steuerungen.
+**Stand: Stufe 2** – Stufe 1 war das Schulflugzeug „Lerche 172“ (ausgedacht, einem kleinen Hochdecker mit Bugrad nachempfunden), ein Flugplatz, alle Steuerungen. Stufe 2 ist die Flugschule: acht Lektionen mit Fluglehrerin Jule vom Rollen bis zum Alleinflug.
 
 ## Arbeitsweise
 
@@ -22,7 +22,8 @@ Das Konzept in neun Stufen ist ein Claude Doc: https://claude.ai/artifact/ByjuAP
 ```bash
 python3 tools/server.py         # http://localhost:8765, ohne Zwischenspeicher
 node tools/flugtest.mjs         # Flugphysik nachmessen: 47 Zahlen (Abriss, Startstrecke, Steigen, Reise, Gleiten, Anflug, Stabilität, vier Landungen); `laut` zeigt mehr
-node tools/trimm.mjs            # sucht Trimmung und Gas für Steigflug, Reise, Platzrunde, Anflug (die Zahlen stehen in STARTS in js/main.js)
+node tools/schule.mjs           # Flugschule: ein künstlicher Pilot fliegt alle acht Lektionen (Hilfe `leicht`, 0,15 s Schrecksekunde) und muss je zwei Sterne schaffen; `laut` zeigt Ansagen und Verlauf, `nur=landung` nur eine Lektion
+node tools/trimm.mjs            # sucht Trimmung und Gas für Steigflug, Reise, Platzrunde, Anflug (die Zahlen stehen in STARTS in js/starts.js)
 ```
 
 **Vor und nach jeder Änderung an `js/physik.js`, `js/flugzeuge.js` oder `js/hilfen.js` `node tools/flugtest.mjs` laufen lassen.**
@@ -30,7 +31,7 @@ node tools/trimm.mjs            # sucht Trimmung und Gas für Steigflug, Reise, 
 
 Im Browser: `window.__flugsim` enthält `f` (Flugzeug), `E` (Einstellungen), `eingabe`, `neigung`, `empfang`, `welt`, `flug`, `los()`, `menue()`.
 `__flugsim.angehalten = true` hält die eigene Schleife an, `step(n)` rechnet n Bilder (je 1/60 s) vor und malt nur das letzte.
-Adresse: `?start=bahn|anflug|runde|vorfeld` überspringt das Menü, `?touch` zeigt die Finger-Steuerung auch am PC, `?lokal` verbindet das Handy über BroadcastChannel statt übers Internet.
+Adresse: `?start=bahn|anflug|runde|vorfeld` überspringt das Menü, `?lektion=rollen|geradeaus|steigen|abriss|start|landung|runde|allein` startet gleich eine Lektion, `?touch` zeigt die Finger-Steuerung auch am PC, `?lokal` verbindet das Handy über BroadcastChannel statt übers Internet.
 Handy ohne Handy testen: zweites Fenster im selben Browser mit `steuer.html?c=CODE&lokal`, dort „Los geht's“ und `__steuer.neigung.sensor(beta, gamma)`.
 Test-Browser: Playwright mit `--use-gl=swiftshader --enable-unsafe-swiftshader`. PeerJS und der QR-Code kommen von jsDelivr und sind dort nicht erreichbar.
 
@@ -61,6 +62,11 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 | `js/klang.js` | Motor, Wind, Abriss-Warnton, Aufsetzen (alles selbst erzeugt), Höhenansagen über die Sprachausgabe |
 | `js/main.js` | Menü, Start-Situationen (`STARTS`), Kameras (Cockpit, hinter dem Flugzeug, vom Turm), Spiel-Schleife |
 | Blick drehen | `blick` in `js/main.js` (`blickSchritt`, `stelleKamera`): über das Bild ziehen (Maus oder ein Finger) dreht im Cockpit den Kopf und außen die Kamera um das Flugzeug, der Blick bleibt so; Doppel-Tipp oder U = geradeaus. Tasten J L I K: im Cockpit nur solange gehalten (links, rechts, hoch, K = nach hinten), außen drehen sie die Kamera; + − und Mausrad = Abstand. Schaut man im Cockpit weiter als etwa 30° zur Seite, verschwindet das Instrumentenbrett (`blick.brettWeg`), dafür sieht man HUD, Flügel und Strebe |
+| `js/schule.js` | Die Flugschule ohne three.js: `LEKTIONEN` (acht Stück: Rollen, Geradeaus und Kurven, Steigen und Sinken, Langsamflug und Abriss, Start, Anflug und Landung, Platzrunde, Alleinflug). Eine Lektion ist eine Liste von Schritten `{ sag, aufgabe, fertig(f, z), halte, fehler(f, z), tipp }`; sie nennt ihren Startort (`start`, bei `'luft'` eine eigene `lage`), ihren Flugweg in der Luft (`weg`: `runde`, `anflug` oder keiner), `hilfeMin` (beim Abriss mindestens `mittel`, sonst verhindert die Hilfe den Abriss), `landung` (die Landenote zählt mit), `allein`. `Unterricht` lässt eine Lektion ablaufen (`schritt(f, dt, flug)`, `sagen`, `aufgabe`, `anteil`, `ergebnis` mit 0 bis 3 Sternen: höchstens eine Ermahnung = 3, bis drei = 2; Bruch = nicht geschafft). Lernstand in `flugsim.schule.v1` (`ladeStand`, `merkeStand`, `offen`: die nächste Lektion geht auf, wenn die davor geschafft ist; im Menü lässt sich alles freischalten, `E.allesOffen`). In der Flugschule ist immer Windstille |
+| Flugschule im Spiel | `schuleSchritt` und `zeigeErgebnis` in `js/main.js`: Was Jule sagt, steht oben im Kasten `#schule` und wird über die Sprachausgabe des Geräts vorgelesen (`klang.sprich`; ein neuer Auftrag unterbricht den alten Satz), darunter die Aufgabe mit Balken für „so lange halten“ und ein Tipp zur Steuerung (Tastatur oder Finger). Am Ende die Nachbesprechung `#ergebnis`: Sterne, Landenote, Anmerkungen, Zeichnung, Knöpfe „Nächste Lektion“, „Noch einmal“, „Menü“ |
+| `js/nachflug.js` | Zeichnung für die Nachbesprechung (Malfläche, ohne three.js): links der geflogene Weg von oben mit Flugplatz, Soll-Weg gestrichelt und roten Punkten, wo Jule etwas angemerkt hat; rechts der Endanflug von der Seite mit dem 3°-Gleitweg (Lektionen mit Landung) oder die Höhe über die Zeit. Die Spur sammelt `main.js` zweimal pro Sekunde (`spur`) |
+| `js/starts.js` | Die Start-Situationen des freien Flugs (`STARTS`), ohne three.js, damit auch die Prüfwerkzeuge sie lesen können |
+| Anflug-Tunnel | `anflugweg()` in `js/platz.js`: der 3°-Anflug auf Bahn 36 ab 4,6 km. `Welt.baueWeg(punkte, torAbstand, …)` baut daraus wie bei der Platzrunde eine blasse Straße und Tore (alle 250 m statt 600 m); `welt.wege = { runde, anflug }`. Welcher Weg zu sehen ist, sagt `wegJetzt()` in `main.js`: die Lektion, sonst der Startort (Start „Im Landeanflug“ = Tunnel) |
 | Flugweg der Platzrunde | `platzrunde()` und `RUNDE` in `js/platz.js` (ohne three.js): der Soll-Weg als Punkte alle 25 m (Linksrunde Bahn 36, Gegenanflug 1500 m westlich in 1000 ft, Kurven mit 400 m Halbmesser, Endanflug 3°). `baueWeg` in `js/welt.js` malt ihn als blasse Straße 28 m **unter** dem Flugweg (auf Augenhöhe wäre sie nur ein Strich) und setzt alle 600 m ein Tor genau auf den Flugweg. Menü „Flugweg der Platzrunde zeigen“, Taste R (`E.weg`, zuerst an) |
 | Windanzeige | `maleWind` in `js/instrumente.js`: oben links in jeder Ansicht, Pfeil = woher der Wind kommt (vom Flugzeug aus gesehen), dazu Anteil von vorn/hinten und von der Seite (gelb ab 8 kn Seitenwind) |
 
@@ -71,5 +77,6 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 - Nicht geprüft: flüssige Bewegung, Ton (Motor, Warnton, Ansagen hat niemand gehört), echtes Neigen, PeerJS über das Internet und der QR-Code, Rütteln, Tempo auf dem iPad. Die Richtung beim Neigen stimmt nach der Rechnung (aus Frontline übernommen), ist aber an keinem Gerät probiert.
 - Alle Zahlen der Hilfen, der Neigung und der Landenote sind geschätzt. Mit Hilfe `leicht` fliegt das Flugzeug losgelassen geradeaus; bei `mittel` und `echt` dreht es im Steigflug ohne Zutun langsam nach links weg (Propeller) – das ist gewollt.
 - Messwerte der Lerche (1040 kg): Abriss etwa 45 kn (mit vollen Klappen 37), Startlauf 330 m, Steigen gut 700 ft/min, Reise 108 kn, Gleiten 10:1. Das liegt nah an einem echten Flugzeug dieser Art, ist aber nicht mit einem Handbuch Punkt für Punkt abgeglichen.
+- Flugschule (Stufe 2, Stand 22.11.2026): Alle acht Lektionen sind mit `tools/schule.mjs` geflogen (künstlicher Pilot, je zwei oder drei Sterne). Im Test-Browser hat derselbe künstliche Pilot (`__flugsim.pilot`, aus `tools/schule.mjs` geholt) Rollen, Abriss, Landung, Platzrunde und Alleinflug bis zur Nachbesprechung geflogen; angesehen als Standbilder: Menü mit Lektionen, Kasten der Lehrerin am PC, im iPad- und im iPhone-Format, Anflug-Tunnel, Nachbesprechung. **Kein Mensch und kein Kind hat eine Lektion geflogen** – ob die Grenzen (wie genau Höhe und Kurs gehalten werden müssen, wie oft Jule ermahnt) für ein Kind passen und ob es in einer Stunde bis zum Alleinflug kommt, ist offen. Jules Stimme ist die Sprachausgabe des Geräts und klingt überall anders; angehört hat sie niemand. Ohne deutsche Stimme bleibt der Text im Kasten. Auf dem iPhone als Spiel-Bildschirm ist der Kasten eng. Die Zeichnung zeigt den Weg, spielt den Flug aber nicht noch einmal ab. Für das Handy als Knüppel gibt es keine eigenen Tipps zur Steuerung.
 - Es fehlt noch (spätere Stufen im Konzept): Checklisten, Funk, Navigation, Autopilot, ILS, Schäden, Karriere, App-Hülle für iPad und iPhone (Handy als Knüppel ohne Internet). Das Gelände ist erfunden und klein; nach dem Bruch bleibt das Flugzeug einfach stehen.
 - Das Handy als Knüppel braucht Internet auf beiden Geräten (PeerJS), und die Seite muss über https laufen (GitHub Pages), weil Bewegungssensoren sonst gesperrt sind.

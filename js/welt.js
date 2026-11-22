@@ -1,6 +1,6 @@
 // Flugsimulator – die Welt in 3D: Himmel, Gelände, Flugplatz mit Bahn, PAPI-Lichter, Windsack, Bäume, Häuser.
 // Alles aus einfachen Formen und selbst gemalten Bildern. three.js kommt als normales Skript (window.THREE).
-import { PLATZ, bodenHoehe, PAPI_WINKEL, anflug, platzrunde } from './platz.js';
+import { PLATZ, bodenHoehe, PAPI_WINKEL, anflug, platzrunde, anflugweg } from './platz.js';
 
 const THREE = window.THREE;
 const zufall = saat => () => { saat = (saat * 1664525 + 1013904223) >>> 0; return saat / 4294967296; };
@@ -41,7 +41,9 @@ export class Welt {
     this.szene = new THREE.Scene();
     this.kamera = new THREE.PerspectiveCamera(62, 1, 0.3, 30000);
     this.szene.fog = new THREE.Fog(0xbcd3e6, 2500, 24000);
-    this.baueHimmel(); this.baueLicht(); this.baueGelaende(); this.bauePlatz(); this.baueBaeume(); this.baueSchatten(); this.baueWeg();
+    this.baueHimmel(); this.baueLicht(); this.baueGelaende(); this.bauePlatz(); this.baueBaeume(); this.baueSchatten();
+    // Flugwege in der Luft: die Platzrunde (Tore alle 600 m) und der Anflug-Tunnel (Tore alle 250 m). main.js schaltet sie an und aus.
+    this.wege = { runde: this.baueWeg(platzrunde(), 600, 34, 22), anflug: this.baueWeg(anflugweg(), 250, 26, 17) }; this.weg = this.wege.runde;
     this.groesse();
     window.addEventListener('resize', () => this.groesse());
   }
@@ -173,8 +175,8 @@ export class Welt {
   // Der perfekte Flugweg der Platzrunde als blasse Straße in der Luft. Die Straße liegt ein Stück UNTER dem Flugweg,
   // damit man sie wie eine Straße unter sich sieht (genau auf Augenhöhe wäre sie nur ein Strich). Wer über ihr bleibt
   // und durch die Tore fliegt, fliegt richtig. Nah am Boden (Start und Aufsetzen) hört sie auf.
-  baueWeg() {
-    const TIEFER = 28, BREIT = 46, P = platzrunde().filter(p => p.y > TIEFER + 8), gr = this.weg = new THREE.Group();
+  baueWeg(punkte, torAbstand, RB, RH) {
+    const TIEFER = 28, BREIT = 46, P = punkte.filter(p => p.y > TIEFER + 8), gr = new THREE.Group();
     const ort = [], uv = [], idx = [];
     P.forEach((p, i) => {
       const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], l = Math.hypot(b.x - a.x, b.z - a.z) || 1, nx = (b.z - a.z) / l, nz = -(b.x - a.x) / l;
@@ -190,17 +192,17 @@ export class Welt {
     });
     b.wrapT = THREE.RepeatWrapping; b.needsUpdate = true;
     const band = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: b, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false })); band.renderOrder = 5; gr.add(band);
-    // Tore genau auf dem Flugweg, alle 600 m: ein Rahmen zum Durchfliegen
-    const rahmen = [], RB = 34, RH = 22; let naechstes = 0;
+    // Tore genau auf dem Flugweg: Rahmen zum Durchfliegen
+    const rahmen = []; let naechstes = 0;
     P.forEach((p, i) => {
-      if (p.s < naechstes || !i) return; naechstes = p.s + 600;
+      if (p.s < naechstes || !i) return; naechstes = p.s + torAbstand;
       const a = P[i - 1], l = Math.hypot(p.x - a.x, p.z - a.z) || 1, nx = (p.z - a.z) / l, nz = -(p.x - a.x) / l;
       const e = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [p.x + nx * u * RB, p.y + v * RH, p.z + nz * u * RB]);
       for (let k = 0; k < 4; k++) rahmen.push(...e[k], ...e[(k + 1) % 4]);
     });
     const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rahmen, 3));
     gr.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0.55, fog: false })));
-    this.szene.add(gr);
+    gr.visible = false; this.szene.add(gr); return gr;
   }
   // jedes Bild: PAPI-Farben für diesen Betrachter, Windsack, Schatten, Himmel mitnehmen
   schritt(f, luft) {

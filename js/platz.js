@@ -77,3 +77,10 @@ export function platzrunde() {
   }
   return roh;
 }
+
+// Der Endanflug als Weg (für den Anflug-Tunnel): 4,6 km gerade auf die Bahn 36 zu, 3° sinkend bis zum Zielpunkt
+export function anflugweg() {
+  const P = [];
+  for (let z = -4600, s = 0; z <= PLATZ.zielpunkt; z += 25, s += 25) P.push({ x: 0, z, s, y: (PLATZ.zielpunkt - z) * Math.tan(PLATZ.gleitweg), teil: 'Endanflug' });
+  return P;
+}
