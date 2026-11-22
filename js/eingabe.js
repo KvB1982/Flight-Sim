@@ -46,7 +46,8 @@ export class Eingabe {
     }
   }
   // Gamepad oder Joystick (alles, was der Browser als „Gamepad“ meldet). Belegung wie bei den meisten Controllern:
-  //   linker Knüppel = Höhen- und Querruder, rechter Knüppel links/rechts (oder Dreh-Achse am Joystick) = Seitenruder,
+  //   linker Knüppel = Höhen- und Querruder, rechter Knüppel links/rechts = Seitenruder (nur bei Geräten mit der
+  //   Standard-Belegung: Bei vielen Joysticks liegt auf dieser Achse der Schubhebel, das wäre dauerndes Seitenruder),
   //   rechter Abzug = mehr Gas, linker Abzug = weniger Gas, A = Bremse, LB/RB = Klappen ein/aus,
   //   Steuerkreuz hoch/runter = Trimmung, Y = Kamera, Start = Pause
   padLesen(dt) {
@@ -56,7 +57,7 @@ export class Eingabe {
     if (!pad) { this.padAlt = null; return null; }
     const tot = v => { const a = Math.abs(v || 0); return a < PAD_TOT ? 0 : Math.sign(v) * (a - PAD_TOT) / (1 - PAD_TOT); };   // kleine tote Mitte, sonst wackelt es
     const b = n => pad.buttons[n] ? pad.buttons[n].value || (pad.buttons[n].pressed ? 1 : 0) : 0;
-    const g = { quer: tot(pad.axes[0]), hoehe: tot(pad.axes[1]), seite: tot(pad.axes[2]), bremse: b(0), trimm: b(13) - b(12), benutzt: false };
+    const g = { quer: tot(pad.axes[0]), hoehe: tot(pad.axes[1]), seite: pad.mapping === 'standard' ? tot(pad.axes[2]) : 0, bremse: b(0), trimm: b(13) - b(12), benutzt: false };
     const gasTempo = b(7) - b(6);
     if (gasTempo) this.e.gas = clamp(this.e.gas + gasTempo * 0.6 * dt, 0, 1);
     // Knöpfe zählen nur beim Herunterdrücken, nicht solange sie gehalten werden

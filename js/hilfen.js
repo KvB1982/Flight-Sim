@@ -38,6 +38,10 @@ export function mitHilfe(e, f, stufe, dt) {
     // Was dauerhaft fehlt (der Propeller zieht die Nase nach links), merkt sich die Hilfe und hält es von allein.
     h.seite = clamp((h.seite || 0) + f.schiebe * 1.5 * dt, -0.5, 0.5);
     a.seite = clamp(2.2 * f.schiebe + h.seite + 0.35 * a.quer, -1, 1);
+    // Das Seitenruder sitzt hoch am Heck und rollt das Flugzeug deshalb ein wenig mit. Weil die Hilfe das Seitenruder
+    // dauernd hält (gegen den Propeller), gleicht sie dieses Rollen mit etwas Querruder aus – sonst kippt das Flugzeug langsam weg.
+    const T = f.T;
+    a.quer = clamp(a.quer + T.clSeite * a.seite * T.ruderMax.seite / (T.clQuer * T.ruderMax.quer), -1, 1);
   }
   if (stufe === 'leicht' && !f.amBoden) {
     // Trimmung wandert langsam dem Knüppel nach: Wer die Nase lange irgendwo hinhält, muss bald nicht mehr drücken oder ziehen.
