@@ -3,8 +3,9 @@
 Ein eigener Flugsimulator für den Browser (PC, iPad, iPhone). Ziel: das Leben eines Verkehrspiloten nachspielen,
 vom Flugschüler bis zum Kapitän. Familien-Lernprojekt wie Powershot, Frontline, Rennspiel, Reitturnier und Police Quest.
 
-**Stand: Stufe 1** – fliegen lernen mit dem kleinen Schulflugzeug „Lerche 172“ am Flugplatz Lerchenfeld:
+**Stand: Stufe 2** – fliegen lernen mit dem kleinen Schulflugzeug „Lerche 172“ am Flugplatz Lerchenfeld:
 rollen, starten, Platzrunde, landen. Mit Wind, Landeklappen, Trimmung, Seitenruder und einer Note für jede Landung.
+Dazu die Flugschule: acht Lektionen mit Fluglehrerin Jule vom Rollen bis zum Alleinflug, mit Sternen, Anflug-Tunnel und Nachbesprechung.
 
 ## Ausprobieren
 

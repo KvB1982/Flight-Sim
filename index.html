@@ -13,21 +13,36 @@
 <canvas id="gl"></canvas>
 <canvas id="hud"></canvas>
 <div id="meldungen"></div>
+<div id="schule"><div id="sKopf"><span id="sName"></span></div><div id="sLehrer"></div><div id="sAufgabe"></div><div id="sTipp"></div><div id="sLeiste"><div id="sBalken"></div></div></div>
+<div id="ergebnis">
+  <div class="karte">
+    <h1 id="eTitel"></h1><div id="eSterne"></div>
+    <p id="eText" class="hinweis"></p><p id="eLandung" class="hinweis"></p>
+    <canvas id="eBild"></canvas>
+    <p class="legende"><span class="gelb">━━</span> so bist du geflogen &nbsp; <span class="blau">┅┅</span> der Soll-Weg &nbsp; <span class="rot">●</span> Anmerkung der Fluglehrerin</p>
+    <h2 id="eFehlerTitel">Das hat die Fluglehrerin angemerkt</h2><ol id="eFehler"></ol>
+    <div class="wahl" style="margin-top:14px"><button id="eWeiter" class="an"></button><button id="eNochmal">Noch einmal</button><button id="eMenue">Menü</button></div>
+  </div>
+</div>
 <div id="pause">Pause<br><small>P = weiter · N = Menü</small></div>
 <div id="menue">
   <div class="karte">
     <h1>Flugsimulator</h1>
-    <p class="unter">Stufe 1: Fliegen lernen mit der Lerche 172 am Flugplatz Lerchenfeld</p>
+    <p class="unter">Fliegen lernen mit der Lerche 172 am Flugplatz Lerchenfeld</p>
+    <h2>Flugschule mit Fluglehrerin Jule</h2>
+    <div class="lektionen" id="wSchule"></div>
+    <p class="hinweis">Acht Lektionen vom Rollen bis zum Alleinflug. Jule sagt dir, was zu tun ist. Die nächste Lektion geht auf, wenn du die davor geschafft hast. <button id="bAlles" class="klein"></button></p>
+    <h2 class="gross">Freier Flug</h2>
     <h2>Wo geht es los?</h2><div class="wahl" id="wStart"></div><p id="startText" class="hinweis"></p>
     <h2>Wetter</h2><div class="wahl" id="wWetter"></div>
     <h2>Hilfen</h2><div class="wahl" id="wHilfe"></div>
     <h2>Ansicht</h2><div class="wahl" id="wKamera"></div>
-    <div class="wahl" style="margin-top:8px"><button id="bWeg">Flugweg der Platzrunde zeigen</button></div>
+    <div class="wahl" style="margin-top:8px"><button id="bWeg">Flugweg in der Luft zeigen</button></div>
     <p class="hinweis">Blick drehen: mit dem Finger oder der Maus über das Bild ziehen (Tasten J L I K). Doppel-Tipp oder U = wieder geradeaus.</p>
     <h2>Steuerung</h2>
     <div class="wahl"><button id="bHandy">Handy als Steuerknüppel verbinden</button><button id="bNeigen">Dieses Gerät neigen</button><button id="bTon">Ton</button></div>
     <div id="handy"><div id="handyQr"></div><div><p>Mit der Handy-Kamera den Code scannen oder diese Adresse öffnen:</p><p id="handyAdr"></p><p>Code: <b id="handyCode"></b> <span id="handyStand"></span></p></div></div>
-    <button id="bLos">Los geht's</button>
+    <button id="bLos">Frei fliegen</button>
     <details><summary>Tasten am Computer</summary><div id="tasten"></div></details>
     <details><summary>So gelingt die erste Landung</summary>
       <ol>
