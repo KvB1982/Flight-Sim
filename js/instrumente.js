@@ -36,7 +36,7 @@ function fahrt(g, x, y, r, f) {
   g.strokeStyle = '#e62e2e'; g.lineWidth = r * 0.05; g.beginPath(); g.moveTo(Math.cos(w(v.nie)) * r * 0.78, Math.sin(w(v.nie)) * r * 0.78); g.lineTo(Math.cos(w(v.nie)) * r * 0.95, Math.sin(w(v.nie)) * r * 0.95); g.stroke();
   striche(g, r, w(0), w(180), 18, 0.12); striche(g, r, w(0), w(180), 36, 0.06, 0.012);
   for (let k = 40; k <= 180; k += 20) zahl(g, r, w(k), String(k), 0.64, 0.15);
-  zeiger(g, r, w(f.ias / KN)); g.restore();
+  zeiger(g, r, w((f.iasZeigt ?? f.ias) / KN)); g.restore();
 }
 // Künstlicher Horizont: blau = Himmel, braun = Erde. Das kleine orange Flugzeug in der Mitte bist du.
 function horizont(g, x, y, r, f) {
@@ -139,7 +139,7 @@ export function maleHud(g, W, H, f) {
   const bx = 18 * s, by = H * 0.5, bh = 210 * s;
   kasten(bx, by - bh / 2, 86 * s, bh);
   g.save(); g.beginPath(); g.rect(bx, by - bh / 2, 86 * s, bh); g.clip();
-  const kn = f.ias / KN, v = f.T.v, py = 3.2 * s;                               // Punkte pro Knoten
+  const kn = (f.iasZeigt ?? f.ias) / KN, v = f.T.v, py = 3.2 * s;                               // Punkte pro Knoten
   const farbBand = (von, bis, farbe, x) => { g.fillStyle = farbe; g.fillRect(bx + x * s, by - (bis - kn) * py, 5 * s, (bis - von) * py); };
   farbBand(v.abriss, v.normalMax, '#2fbf4f', 78); farbBand(v.abriss0, v.klappenMax, '#f2f2f2', 72); farbBand(v.normalMax, v.nie, '#f0c020', 78); farbBand(0, v.abriss0, '#e62e2e', 78);
   g.fillStyle = '#cfd8e0'; g.font = `${14 * s}px sans-serif`; g.textAlign = 'right';

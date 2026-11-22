@@ -39,6 +39,15 @@ export function baueLerche() {
   const prop = new THREE.Group(); prop.position.set(0, -0.18, 2.2); g.add(prop);
   const blatt = teil(new THREE.BoxGeometry(1.9, 0.14, 0.03), dunkel, 0, 0, 0, prop);
   const scheibe = teil(new THREE.CircleGeometry(0.95, 20), new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }), 0, 0, 0.01, prop);
+  // Staurohr unter dem linken Flügel, dazu die rote Hülle mit Fähnchen und die Bremskeile (nur beim ganzen Flug zu sehen)
+  const rot = new THREE.MeshLambertMaterial({ color: 0xd8281e }), gelb = new THREE.MeshLambertMaterial({ color: 0xf2b21c });
+  teil(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 6), grau, 4.3, 0.56, 0.65).rotation.x = Math.PI / 2;
+  teil(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 6), grau, 4.3, 0.62, 0.52);
+  const huelle = new THREE.Group(); g.add(huelle);
+  teil(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 8), rot, 4.3, 0.56, 0.75, huelle).rotation.x = Math.PI / 2;
+  teil(new THREE.BoxGeometry(0.02, 0.5, 0.07), rot, 4.3, 0.3, 0.8, huelle);
+  const keile = new THREE.Group(); g.add(keile);
+  for (const x of [1.3, -1.3]) for (const z of [-0.08, -0.62]) teil(new THREE.BoxGeometry(0.3, 0.14, 0.16), gelb, x, -1.02, z, keile);
   let dreh = 0;
   return {
     gruppe: g,
@@ -53,6 +62,7 @@ export function baueLerche() {
       for (const k of klappen) k.rotation.x = -f.klappen * 30 * Math.PI / 180;
       raeder.forEach((r, i) => { r.position.y = -0.9 + Math.min(0.2, f.rad[i]); });
       dreh += f.drehzahl / 60 * 2 * Math.PI * dt; prop.rotation.z = dreh % (2 * Math.PI);
+      huelle.visible = !!(f.sys && f.sys.huelle); keile.visible = !!(f.sys && f.sys.keile);
       blatt.visible = f.drehzahl < 500; scheibe.visible = f.drehzahl >= 300;
     }
   };

@@ -55,6 +55,7 @@ export function baueTouch(eingabe, tu) {
   const stick = knueppel(rechts, eingabe.stick);
   knopf(unten, '◀ Seitenruder', 'pedal', () => { eingabe.pedal = -1; }, () => { eingabe.pedal = 0; });
   knopf(unten, 'Seitenruder ▶', 'pedal', () => { eingabe.pedal = 1; }, () => { eingabe.pedal = 0; });
+  const schalterKnopf = knopf(oben, 'Schalter', 'klein blau', () => tu.brett()), listeKnopf = knopf(oben, 'Checkliste', 'klein blau', () => tu.liste());
   knopf(oben, 'Ansicht', 'klein', () => tu.kamera());
   const neig = knopf(oben, 'Neigen: aus', 'klein', () => tu.neigen());
   knopf(oben, 'Mitte', 'klein', () => tu.mitte());
@@ -64,6 +65,10 @@ export function baueTouch(eingabe, tu) {
   return {
     wurzel,
     // jedes Bild: Schubhebel nachführen; beim Neigen oder mit dem Handy braucht man den Knüppel auf dem Bildschirm nicht
-    zeige(neigenAn, handyAn) { hebel.zeige(); neig.textContent = 'Neigen: ' + (neigenAn ? 'an' : 'aus'); stick.style.visibility = neigenAn || handyAn ? 'hidden' : ''; }
+    zeige(neigenAn, handyAn, ganzerFlug, zuFuss) {
+      schalterKnopf.style.display = ganzerFlug && !zuFuss ? '' : 'none'; listeKnopf.style.display = ganzerFlug ? '' : 'none';
+      // zu Fuß (Außencheck) braucht man nur den Knüppel zum Gehen: Gashebel, Klappen, Bremse, Trimmung und Pedale verschwinden
+      for (const t of [hebel, spalteL, spalteR, unten]) t.style.display = zuFuss ? 'none' : '';
+      hebel.zeige(); neig.textContent = 'Neigen: ' + (neigenAn ? 'an' : 'aus'); stick.style.visibility = (neigenAn || handyAn) && !zuFuss ? 'hidden' : ''; }
   };
 }
