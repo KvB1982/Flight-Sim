@@ -11,7 +11,7 @@ import { KN, FT, GRAD } from './flugzeuge.js';
 import { PLATZ, RUNDE, anflug } from './platz.js';
 
 export const LEHRERIN = 'Jule';
-const kn = f => f.ias / KN, fuss = f => f.hoeheGrund / FT, fpm = f => f.steig / FT * 60;
+const kn = f => f.ias / KN, fuss = f => (f.p[1] + f.T.raeder[1].ort[1]) / FT,   /* Höhe über dem Flugplatz, wie der Höhenmesser – nicht über den Hügeln */ fpm = f => f.steig / FT * 60;
 // Unterschied zweier Kurse in Grad (immer 0 bis 180)
 const kursFehlt = (f, grad) => { let d = (f.kurs / GRAD - grad) % 360; if (d > 180) d -= 360; if (d < -180) d += 360; return Math.abs(d); };
 const roll = f => Math.abs(f.roll) / GRAD;
@@ -78,7 +78,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'geradeaus', name: '2 · Geradeaus und Kurven', kurz: 'Höhe und Kurs halten, Kurven nach links und rechts', start: 'luft', weg: null,
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 105 * KN, trimm: 0.08, gas: 0.85 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 105 * KN, trimm: -0.73, gas: 0.85 },
     schritte: [
       { sag: 'Wir sind in 2000 Fuß. Schau auf den Horizont: Liegt die Nase knapp darunter, fliegen wir geradeaus. Halte 20 Sekunden lang die Höhe und den Kurs Nord.',
         aufgabe: '20 Sekunden: Höhe 2000 ft und Kurs Nord (360) halten', fertig: f => Math.abs(fuss(f) - 2000) < 150 && kursFehlt(f, 360) < 10, halte: 20, fehler: hoeheWeg(2000), tipp: T.knueppel },
@@ -92,7 +92,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'steigen', name: '3 · Steigen und Sinken', kurz: 'Auf eine Höhe steigen, sie halten und wieder sinken', start: 'luft', weg: null,
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 100 * KN, trimm: 0.1, gas: 0.8 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 100 * KN, trimm: -0.67, gas: 0.8 },
     schritte: [
       { sag: 'Heute geht es rauf und runter. Merke dir: Das Gas bestimmt, ob wir steigen oder sinken. Die Nase bestimmt das Tempo. Gib Vollgas und nimm die Nase hoch, bis der Fahrtmesser 75 Knoten zeigt. Wir steigen auf 3000 Fuß.',
         aufgabe: 'Vollgas, Nase hoch auf 75 kn: steigen auf 3000 ft', fertig: f => fuss(f) > 2920, fehler: zuLangsam(58), tipp: T.gas },
@@ -106,7 +106,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'abriss', name: '4 · Langsamflug und Abriss', kurz: 'Langsam fliegen, den Strömungsabriss erleben und beenden', start: 'luft', weg: null, hilfeMin: 'mittel',
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 3000 * FT, tempo: 90 * KN, trimm: 0.15, gas: 0.7 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 3000 * FT, tempo: 90 * KN, trimm: -0.5, gas: 0.7 },
     schritte: [
       { sag: 'Heute zeige ich dir, was passiert, wenn ein Flugzeug zu langsam wird. Dafür schalte ich den Schutz der Hilfe ab. Zuerst langsam fliegen: Gas auf 45 Prozent, Klappen auf 20 Grad, und die Nase so weit hoch, dass wir die Höhe halten.',
         aufgabe: 'Gas 45 %, Klappen 20°: langsamer werden bis unter 58 kn, Höhe halten', fertig: f => kn(f) < 58 && f.klappenStufe >= 2 && Math.abs(fuss(f) - 3000) < 250, halte: 6, fehler: hoeheWeg(3000, 400), tipp: T.klappen },
@@ -114,7 +114,7 @@ export const LEKTIONEN = [
         aufgabe: 'Gas ganz raus und ziehen, bis die Strömung abreißt', fertig: f => f.abriss > 0.3 },
       { sag: 'Abriss! Nase runter, Vollgas, Flügel gerade!',
         aufgabe: 'Nase runter, Vollgas – dann sanft abfangen', fertig: f => f.abriss < 0.05 && kn(f) > 60 && fpm(f) > -200, halte: 2,
-        fehler: (f, z) => z.h0 - f.hoeheGrund > 500 * FT ? 'Das hat viel Höhe gekostet. Nach dem Abriss zügig Vollgas und nicht zu lange drücken.' : null },
+        fehler: (f, z) => z.h0 - f.p[1] > 500 * FT ? 'Das hat viel Höhe gekostet. Nach dem Abriss zügig Vollgas und nicht zu lange drücken.' : null },
       { sag: 'Genau so. Wer die Nase runternimmt und Gas gibt, fliegt sofort wieder. Klappen einfahren und noch kurz geradeaus.',
         aufgabe: 'Klappen einfahren und 8 Sekunden normal weiterfliegen', fertig: f => f.klappenStufe === 0 && kn(f) > 65 && f.abriss < 0.05, halte: 8, fehler: zuLangsam(50) }
     ]
@@ -158,7 +158,7 @@ export class Unterricht {
     this.nr++; this.haltZeit = 0; this.anteil = 0;
     const s = this.l.schritte[this.nr];
     if (!s) return;
-    this.z.h0 = f.hoeheGrund; this.aufgabe = s.aufgabe; this.tipp = s.tipp || null;
+    this.z.h0 = f.p[1]; this.aufgabe = s.aufgabe; this.tipp = s.tipp || null;
     if (s.sag) this.sagen.push({ text: s.sag, art: 'lehrer' });
   }
   // nach jedem Bild aufrufen. flug = Flug aus flug.js (zählt die Landungen und kennt die Note)

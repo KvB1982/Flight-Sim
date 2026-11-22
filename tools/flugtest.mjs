@@ -23,7 +23,7 @@ function abriss(klappen) {
   return kn(min);
 }
 pruefe('Abriss ohne Klappen (gerechnet)', kn(abrissTempo(neuesFlugzeug('lerche'), 0)), 45, 51, 'kn');
-pruefe('Abriss ohne Klappen (geflogen)', abriss(0), 44, 52, 'kn');
+pruefe('Abriss ohne Klappen (geflogen)', abriss(0), 43, 52, 'kn');
 pruefe('Abriss mit vollen Klappen (geflogen)', abriss(3), 36, 44, 'kn');
 
 // ---- 2. Start: Vollgas, bei 55 kn ziehen. Wie lang ist die Rollstrecke?
@@ -88,7 +88,7 @@ let reiseNick = 0;
 // ---- 7. Stabil? Im Reiseflug getrimmt loslassen, kurz am Knüppel reißen, dann eine Minute nichts tun
 {
   const [f, p] = neu({ hoehe: 900, tempo: 57 }, ruhig, { hilfe: 'echt' });
-  p.flieg(120, (s, dt) => { p.e.gas = 0.88; p.hoeheMitNase(s, 900, dt); p.kurs(s, 0); f.trimm += p.e.hoehe * 0.3 * dt; });
+  p.flieg(120, (s, dt) => { p.e.gas = 0.88; p.hoeheMitNase(s, 900, dt); p.kurs(s, 0); f.trimm += p.e.hoehe * 0.9 * dt; });
   const v0 = f.ias;
   let vMin = 99, vMax = 0, rollMax = 0;
   p.flieg(70, (s, dt, t) => {

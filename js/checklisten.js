@@ -16,7 +16,7 @@ export const MODI = { hilfe: 'Mit Hilfe: Das Spiel macht jeden Handgriff und erk
 const kn = f => f.ias / KN, fuss = f => f.hoeheGrund / FT, tempoBoden = f => Math.hypot(f.v[0], f.v[2]);
 // Ein Punkt, der nur einen Schalter stellt
 const sch = (id, wert, text) => { const d = SCHALTER.find(x => x.id === id); return { id, text: text || `${d.name} ${wert ? d.an : d.aus}`, ok: (f, s) => s[id] === wert, tu: f => { schalte(f, id, wert); }, tipp: true, grund: d.grund }; };
-const START_TRIMM = 0.15;
+const START_TRIMM = -0.3;
 
 export const PHASEN = [
   {
@@ -49,7 +49,7 @@ export const PHASEN = [
       sch('park', false, 'Parkbremse lösen und zur Bahn rollen'),
       { id: 'ruderFrei', text: 'Ruder frei: Knüppel einmal ganz in alle Richtungen', ok: (f, s) => s.ruderFrei, tu: (f, s) => { s.ruderFrei = true; }, grund: 'Letzte Gelegenheit zu merken, dass ein Ruder klemmt.' },
       { id: 'probe', text: 'Motor-Probe: mit Bremse 3 Sekunden halbes Gas', ok: (f, s) => s.motorProbe, tu: (f, s) => { s.motorProbe = true; }, grund: 'Läuft der Motor hier unrund, bleibt man am Boden.' },
-      { id: 'trimm', text: 'Trimmung auf Start', ok: f => Math.abs(f.trimm - START_TRIMM) < 0.08, tu: f => { f.trimm = START_TRIMM; }, grund: 'Mit falscher Trimmung hebt das Flugzeug zu früh oder gar nicht ab.' },
+      { id: 'trimm', text: 'Trimmung auf Start', ok: f => Math.abs(f.trimm - START_TRIMM) < 0.2, tu: f => { f.trimm = START_TRIMM; }, grund: 'Mit falscher Trimmung hebt das Flugzeug zu früh oder gar nicht ab.' },
       { id: 'klappenStart', text: 'Klappen 0° oder 10°', ok: f => f.klappenStufe <= 1, tu: f => { f.klappenStufe = 0; }, grund: 'Mit vollen Klappen steigt das Flugzeug kaum.' },
       sch('vorwaerm', false), sch('lande', true)
     ]

@@ -37,7 +37,7 @@ export function mitHilfe(e, f, stufe, dt) {
   if (stufe === 'leicht' && !f.amBoden) {
     // Trimmung wandert langsam dem Knüppel nach: Wer die Nase lange irgendwo hinhält, muss bald nicht mehr drücken oder ziehen.
     // Sie geht aber nur so weit, dass das Flugzeug losgelassen nie langsamer als etwa 60 Knoten wird.
-    f.trimm = clamp(f.trimm + a.hoehe * 0.07 * dt, -0.15, Math.max(f.trimm, 0.42));
+    f.trimm = clamp(f.trimm + a.hoehe * 0.1 * dt, -1, Math.max(f.trimm, 0.3));
     // Nicht zu steil: Über 15° Nase hoch und unter 12° Nase runter hält die Hilfe dagegen
     const hochRate = -f.w[0];
     a.hoehe = clamp(a.hoehe, clamp((-0.21 - f.nick) * 6 - hochRate * 1.2, -1, 1), clamp((0.26 - f.nick) * 6 - hochRate * 1.2, -0.4, 1));
