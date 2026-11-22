@@ -40,3 +40,40 @@ export const bahnFuer = (kurs) => Math.cos(kurs) >= 0 ? 36 : 18;
 // PAPI: vier Lampen. Jede ist weiß, wenn man höher ist als ihr Winkel, sonst rot. Zwei weiß, zwei rot = genau richtig.
 export const PAPI_WINKEL = [2.5, 2.83, 3.17, 3.5].map(g => g * GRAD);
 export const papi = (p, richtung) => { const w = anflug(p, richtung).winkel; return PAPI_WINKEL.map(g => w > g); };
+
+// ---------------------------------------------------------------- Die Platzrunde als Flugweg
+// Eine Platzrunde ist ein Rechteck um den Flugplatz: starten, links herum, parallel zur Bahn zurück (Gegenanflug),
+// noch zweimal links herum und landen. Hier steht der „perfekte“ Weg als Liste von Punkten alle 25 m: { x, y, z, s, teil }.
+// Start und Landung nach Norden (Bahn 36), Kurven nach links (Westen = +x), Gegenanflug in 1000 Fuß.
+export const RUNDE = { abstand: 1500, hoch: 305, radius: 400, nord: 2000, sued: -2000, abheben: 380, steigen: 0.095 };
+export function platzrunde() {
+  const R = RUNDE, ecken = [[0, R.abheben], [0, R.nord], [R.abstand, R.nord], [R.abstand, R.sued], [0, R.sued], [0, PLATZ.zielpunkt]];
+  const namen = ['Abflug', 'Querabflug', 'Gegenanflug', 'Queranflug', 'Endanflug'];
+  // 1. Der Weg am Boden entlang: gerade Stücke, die Ecken als Viertelkreise
+  const roh = [], schritt = 25;
+  const gerade = (a, b, teil) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(l / schritt)); for (let i = 0; i < n; i++) roh.push({ x: a[0] + (b[0] - a[0]) * i / n, z: a[1] + (b[1] - a[1]) * i / n, teil }); };
+  let von = ecken[0];
+  for (let i = 1; i < ecken.length; i++) {
+    const e = ecken[i], letzte = i === ecken.length - 1;
+    const dx = e[0] - ecken[i - 1][0], dz = e[1] - ecken[i - 1][1], l = Math.hypot(dx, dz), ux = dx / l, uz = dz / l;
+    const bis = letzte ? e : [e[0] - ux * R.radius, e[1] - uz * R.radius];
+    gerade(von, bis, namen[i - 1]);
+    if (letzte) { roh.push({ x: e[0], z: e[1], teil: namen[i - 1] }); break; }
+    // Viertelkreis nach links: von der alten Richtung (ux, uz) in die neue
+    const n = ecken[i + 1], l2 = Math.hypot(n[0] - e[0], n[1] - e[1]), vx = (n[0] - e[0]) / l2, vz = (n[1] - e[1]) / l2;
+    const mx = bis[0] + vx * R.radius, mz = bis[1] + vz * R.radius, st = 12;
+    for (let k = 0; k < st; k++) { const w = k / st * Math.PI / 2; roh.push({ x: mx - vx * R.radius * Math.cos(w) + ux * R.radius * Math.sin(w), z: mz - vz * R.radius * Math.cos(w) + uz * R.radius * Math.sin(w), teil: namen[i - 1] }); }
+    von = [e[0] + vx * R.radius, e[1] + vz * R.radius];
+  }
+  let s = 0; roh.forEach((p, i) => { if (i) s += Math.hypot(p.x - roh[i - 1].x, p.z - roh[i - 1].z); p.s = s; });
+  // 2. Die Höhe: steigen bis 1000 Fuß, halten bis querab vom Bahnanfang, dann gleichmäßig sinken;
+  //    das letzte Stück ist der Gleitweg mit 3° auf den Zielpunkt
+  const ende = s, endanflug = roh.find(p => p.teil === 'Endanflug').s, querab = roh.find(p => p.teil === 'Gegenanflug' && p.z <= 0).s;
+  const hEnd = (ende - endanflug) * Math.tan(PLATZ.gleitweg);
+  for (const p of roh) {
+    if (p.s <= querab) p.y = Math.min(R.hoch, 2 + p.s * R.steigen);
+    else if (p.s <= endanflug) p.y = R.hoch + (hEnd - R.hoch) * (p.s - querab) / (endanflug - querab);
+    else p.y = (ende - p.s) * Math.tan(PLATZ.gleitweg);
+  }
+  return roh;
+}

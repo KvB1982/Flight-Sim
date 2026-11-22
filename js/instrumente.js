@@ -181,3 +181,28 @@ export function maleHud(g, W, H, f) {
   g.fillText(`Klappen ${f.T.klappen[f.klappenStufe]}°   Trimm ${f.trimm >= 0 ? '+' : ''}${Math.round(f.trimm * 100)}`, hx + r + 22 * s, hy + 2 * s);
   g.fillText(`Höhe über Grund ${Math.round(f.hoeheGrund / FT)} ft`, hx + r + 22 * s, hy + 20 * s);
 }
+
+// ---------------------------------------------------------------- Windanzeige (oben links, in jeder Ansicht)
+// Der Pfeil zeigt, woher der Wind kommt – gesehen vom Flugzeug aus: oben = von vorn, rechts = von rechts.
+// Darunter steht, wie viel davon von vorn (bremst) und wie viel von der Seite (schiebt weg) kommt.
+export function maleWind(g, W, H, f, w) {
+  const s = Math.min(W, H) / 700, x = 14 * s, y = 14 * s, r = 24 * s;
+  const kn = Math.hypot(w[0], w[2]) / KN, aus = Math.atan2(w[0], -w[2]), rel = aus - f.kurs;
+  g.save(); g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(10,14,18,0.55)'; g.beginPath(); g.roundRect(x, y, 208 * s, 62 * s, 8 * s); g.fill();
+  const cx = x + 32 * s, cy = y + 31 * s;
+  g.strokeStyle = '#8f98a3'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke();
+  g.fillStyle = '#cfd8e0'; g.beginPath(); g.moveTo(cx, cy - 7 * s); g.lineTo(cx - 5 * s, cy + 6 * s); g.lineTo(cx + 5 * s, cy + 6 * s); g.closePath(); g.fill();      // das eigene Flugzeug, Nase nach oben
+  g.font = `${14 * s}px sans-serif`; g.textAlign = 'left'; g.fillStyle = '#fff';
+  if (kn < 1) { g.fillText('Windstill', x + 66 * s, cy); g.restore(); return; }
+  g.save(); g.translate(cx, cy); g.rotate(rel);
+  g.strokeStyle = '#46dcff'; g.fillStyle = '#46dcff'; g.lineWidth = 3 * s; g.beginPath(); g.moveTo(0, -r - 4 * s); g.lineTo(0, -r * 0.45); g.stroke();
+  g.beginPath(); g.moveTo(0, -r * 0.3); g.lineTo(-6 * s, -r * 0.62); g.lineTo(6 * s, -r * 0.62); g.closePath(); g.fill(); g.restore();
+  const grad = Math.round(((aus / GRAD) % 360 + 360) % 360 / 10) * 10 || 360, vorn = kn * Math.cos(rel), seite = kn * Math.sin(rel);
+  g.fillText(`Wind aus ${String(grad).padStart(3, '0')}°  ${Math.round(kn)} kn`, x + 66 * s, cy - 15 * s);
+  g.fillStyle = '#cfd8e0'; g.font = `${12.5 * s}px sans-serif`;
+  g.fillText(`${vorn >= 0 ? 'von vorn' : 'von hinten'} ${Math.round(Math.abs(vorn))} kn`, x + 66 * s, cy + 3 * s);
+  g.fillStyle = Math.abs(seite) >= 8 ? '#ffc43c' : '#cfd8e0';
+  g.fillText(`${seite >= 0 ? 'von rechts' : 'von links'} ${Math.round(Math.abs(seite))} kn`, x + 66 * s, cy + 19 * s);
+  g.restore();
+}

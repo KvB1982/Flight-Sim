@@ -1,6 +1,6 @@
 // Flugsimulator – die Welt in 3D: Himmel, Gelände, Flugplatz mit Bahn, PAPI-Lichter, Windsack, Bäume, Häuser.
 // Alles aus einfachen Formen und selbst gemalten Bildern. three.js kommt als normales Skript (window.THREE).
-import { PLATZ, bodenHoehe, PAPI_WINKEL, anflug } from './platz.js';
+import { PLATZ, bodenHoehe, PAPI_WINKEL, anflug, platzrunde } from './platz.js';
 
 const THREE = window.THREE;
 const zufall = saat => () => { saat = (saat * 1664525 + 1013904223) >>> 0; return saat / 4294967296; };
@@ -41,7 +41,7 @@ export class Welt {
     this.szene = new THREE.Scene();
     this.kamera = new THREE.PerspectiveCamera(62, 1, 0.3, 30000);
     this.szene.fog = new THREE.Fog(0xbcd3e6, 2500, 24000);
-    this.baueHimmel(); this.baueLicht(); this.baueGelaende(); this.bauePlatz(); this.baueBaeume(); this.baueSchatten();
+    this.baueHimmel(); this.baueLicht(); this.baueGelaende(); this.bauePlatz(); this.baueBaeume(); this.baueSchatten(); this.baueWeg();
     this.groesse();
     window.addEventListener('resize', () => this.groesse());
   }
@@ -169,6 +169,38 @@ export class Welt {
     const b = bild(64, 64, (g) => { const v = g.createRadialGradient(32, 32, 2, 32, 32, 30); v.addColorStop(0, 'rgba(0,0,0,0.55)'); v.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = v; g.fillRect(0, 0, 64, 64); });
     this.schatten = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: b, transparent: true, depthWrite: false }));
     this.schatten.rotation.x = -Math.PI / 2; this.szene.add(this.schatten);
+  }
+  // Der perfekte Flugweg der Platzrunde als blasse Straße in der Luft. Die Straße liegt ein Stück UNTER dem Flugweg,
+  // damit man sie wie eine Straße unter sich sieht (genau auf Augenhöhe wäre sie nur ein Strich). Wer über ihr bleibt
+  // und durch die Tore fliegt, fliegt richtig. Nah am Boden (Start und Aufsetzen) hört sie auf.
+  baueWeg() {
+    const TIEFER = 28, BREIT = 46, P = platzrunde().filter(p => p.y > TIEFER + 8), gr = this.weg = new THREE.Group();
+    const ort = [], uv = [], idx = [];
+    P.forEach((p, i) => {
+      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)], l = Math.hypot(b.x - a.x, b.z - a.z) || 1, nx = (b.z - a.z) / l, nz = -(b.x - a.x) / l;
+      ort.push(p.x + nx * BREIT / 2, p.y - TIEFER, p.z + nz * BREIT / 2, p.x - nx * BREIT / 2, p.y - TIEFER, p.z - nz * BREIT / 2); uv.push(0, p.s / 150, 1, p.s / 150);
+      if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(ort, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
+    // Bild der Straße: blasse Fläche, hellere Ränder, ein Pfeil in Flugrichtung
+    const b = bild(64, 256, g => {
+      g.clearRect(0, 0, 64, 256); g.fillStyle = 'rgba(120,225,255,0.16)'; g.fillRect(0, 0, 64, 256);
+      g.fillStyle = 'rgba(190,245,255,0.75)'; g.fillRect(0, 0, 4, 256); g.fillRect(60, 0, 4, 256);
+      g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 5; g.beginPath(); g.moveTo(16, 150); g.lineTo(32, 106); g.lineTo(48, 150); g.stroke();
+    });
+    b.wrapT = THREE.RepeatWrapping; b.needsUpdate = true;
+    const band = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: b, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false })); band.renderOrder = 5; gr.add(band);
+    // Tore genau auf dem Flugweg, alle 600 m: ein Rahmen zum Durchfliegen
+    const rahmen = [], RB = 34, RH = 22; let naechstes = 0;
+    P.forEach((p, i) => {
+      if (p.s < naechstes || !i) return; naechstes = p.s + 600;
+      const a = P[i - 1], l = Math.hypot(p.x - a.x, p.z - a.z) || 1, nx = (p.z - a.z) / l, nz = -(p.x - a.x) / l;
+      const e = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => [p.x + nx * u * RB, p.y + v * RH, p.z + nz * u * RB]);
+      for (let k = 0; k < 4; k++) rahmen.push(...e[k], ...e[(k + 1) % 4]);
+    });
+    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rahmen, 3));
+    gr.add(new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0.55, fog: false })));
+    this.szene.add(gr);
   }
   // jedes Bild: PAPI-Farben für diesen Betrachter, Windsack, Schatten, Himmel mitnehmen
   schritt(f, luft) {
