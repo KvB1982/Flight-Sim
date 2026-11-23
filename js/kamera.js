@@ -1,7 +1,8 @@
 // Flugsimulator – die Kameras: im Cockpit (Kopf des Piloten), hinter dem Flugzeug, vom Turm, und zu Fuß beim Außencheck.
 // Aus main.js herausgelöst, damit die Hauptdatei kürzer wird.
 import { GRAD } from './flugzeuge.js';
-import { PLATZ, bodenHoehe } from './platz.js';
+import { bodenHoehe } from './platz.js';
+import { naechsterPlatz, platzWelt } from './region.js';
 import { BRETT_ANTEIL } from './instrumente.js';
 
 const THREE = window.THREE;
@@ -67,7 +68,9 @@ export class Kamera {
         k.position.copy(this.alt); k.up.set(0, 1, 0); k.lookAt(f.p[0] - Math.sin(f.kurs) * vorn, f.p[1] + 1, f.p[2] + Math.cos(f.kurs) * vorn); k.fov = 62;
       } else {
         // vom Turm aus: Die Kamera steht fest und schaut dem Flugzeug nach, je weiter weg, desto stärker das Fernglas
-        k.position.set(PLATZ.vorfeld.x - 30, 17, PLATZ.vorfeld.z - 48); k.up.set(0, 1, 0); k.lookAt(f.p[0], f.p[1], f.p[2]);
+        // der Turm des Platzes, der am nächsten liegt
+        const P = naechsterPlatz(f.p[0], f.p[2]).platz, [tx, tz] = platzWelt(P, P.vorfeld.x - 30, P.vorfeld.z - 48);
+        k.position.set(tx, P.hoehe + 17, tz); k.up.set(0, 1, 0); k.lookAt(f.p[0], f.p[1], f.p[2]);
         k.fov = Math.max(1.2, Math.min(50, 2 * Math.atan(22 / k.position.distanceTo(new THREE.Vector3(...f.p))) / GRAD));
       }
     }

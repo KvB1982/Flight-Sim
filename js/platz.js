@@ -12,17 +12,8 @@ export const PLATZ = {
   rollhalt: { x: -45, z: 30 }  // hier wartet man vor der Bahn
 };
 
-// Höhe des Bodens: rund um den Platz flach, ab 3 km Entfernung wachsen Hügel
-const sanft = (x, a, b) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-export function bodenHoehe(x, z) {
-  const d = Math.hypot(x, z - PLATZ.lang / 2);
-  if (d < 3000) return 0;
-  const k = sanft(d, 3000, 7000);
-  const h = 130 + 90 * Math.sin(x * 0.00071 + 1.3) * Math.cos(z * 0.00063 - 0.4) + 60 * Math.sin(x * 0.0019 - z * 0.0013) + 30 * Math.sin(z * 0.0041 + x * 0.0027);
-  // im Norden und Süden bleibt eine Schneise für An- und Abflug niedriger
-  const schneise = 0.35 + 0.65 * sanft(Math.abs(x), 600, 2500);
-  return Math.max(0, h * k * schneise);
-}
+// Höhe des Bodens: rund um den Platz flach, dahinter das Alpenvorland (js/region.js)
+export { bodenHoehe } from './region.js';
 
 // Anflug auf eine Bahn: gibt für einen Ort die Abweichung vom Leitstrahl zurück.
 // richtung 36 = Landung nach Norden (Schwelle z = 0), 18 = Landung nach Süden.

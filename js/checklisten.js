@@ -167,5 +167,7 @@ export function schreibeBuch(speicher, eintrag, f) {
   try { speicher.setItem(BUCH, JSON.stringify(buch)); speicher.setItem(ZUSTAND, JSON.stringify({ sprit: +f.sprit.toFixed(1), batterieLeer: !!f.sys.haupt })); } catch (e) { /* egal */ }
   return buch;
 }
+// Ein Eintrag ohne den Zustand des Flugzeugs (für den Überlandflug)
+export function schreibeEintrag(speicher, eintrag) { const buch = ladeBuch(speicher); buch.unshift(eintrag); buch.length = Math.min(buch.length, 40); try { speicher.setItem(BUCH, JSON.stringify(buch)); } catch (e) { /* egal */ } return buch; }
 // Zeiten schön schreiben: 372 → „6:12“
 export const minuten = sek => `${Math.floor(sek / 60)}:${String(Math.round(sek % 60)).padStart(2, '0')}`;
