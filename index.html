@@ -19,7 +19,7 @@
     <h1 id="eTitel"></h1><div id="eSterne"></div>
     <p id="eText" class="hinweis"></p><p id="eLandung" class="hinweis"></p>
     <canvas id="eBild"></canvas>
-    <p class="legende"><span class="gelb">━━</span> so bist du geflogen &nbsp; <span class="blau">┅┅</span> der Soll-Weg &nbsp; <span id="eLegRot"><span class="rot">●</span> Anmerkung der Fluglehrerin</span></p>
+    <p class="legende" id="eLeg"><span class="gelb">━━</span> so bist du geflogen &nbsp; <span class="blau">┅┅</span> der Soll-Weg &nbsp; <span id="eLegRot"><span class="rot">●</span> Anmerkung der Fluglehrerin</span></p>
     <h2 id="eFehlerTitel">Das hat die Fluglehrerin angemerkt</h2><ol id="eFehler"></ol>
     <div class="wahl" style="margin-top:14px"><button id="eWeiter" class="an"></button><button id="eNochmal">Noch einmal</button><button id="eMenue">Menü</button></div>
   </div>
@@ -27,6 +27,24 @@
 <div id="liste"><div id="lKopf"></div><div id="lWo"></div><div id="lPunkte"></div><button id="lBuch">Flugbuch schreiben</button></div>
 <div id="brett"><div id="bKopf"><b>Schalterbrett</b><span id="bTank"></span><button id="bZu" class="klein">✕ zu</button></div><div id="bSchalter"></div></div>
 <div id="stelle"><b id="stName"></b><p id="stText"></p><div id="stTun" class="wahl"></div></div>
+<div id="funk"><div id="fuKopf"></div><div id="fuVerlauf"></div><div id="fuTipp"></div><div id="fuFrage"></div><div id="fuAntworten"></div></div>
+<div id="flugkarte"><canvas id="fkBild"></canvas><div id="fkLeiste"><span id="fkText"></span><button id="fkMinus" class="klein">−</button><button id="fkPlus" class="klein">＋</button><button id="fkMitte" class="klein">Zum Flugzeug</button><button id="fkZu" class="klein">✕ zu (M)</button></div></div>
+<div id="planer">
+  <div id="plKarte"><canvas id="plBild"></canvas><div id="plZoom"><button id="plPlus" class="klein">＋</button><button id="plMinus" class="klein">−</button><button id="plAlles" class="klein">Alles zeigen</button></div></div>
+  <div id="plSeite">
+    <h1>Flugplaner</h1>
+    <p class="hinweis">Tippe auf der Karte Flugplätze, Orte, Seen, Gipfel oder Funkfeuer an. Ein Flugplatz kommt ans Ende des Plans, alles andere wird ein Wegpunkt vor dem Ziel. Karte schieben: ziehen. Näher: Mausrad oder zwei Finger.</p>
+    <h2>Fertige Ausflüge</h2><div class="wahl" id="plAusfluege"></div><p id="plAusflugText" class="hinweis"></p>
+    <h2>Dein Plan</h2><div id="plPunkte"></div>
+    <div class="wahl"><button id="plLeer" class="klein">Plan leeren</button><button id="plUm" class="klein">Umdrehen</button></div>
+    <h2>Reisehöhe und Sprit</h2>
+    <div class="wahl"><button id="plTiefer">− 500 ft</button><b id="plHoehe"></b><button id="plHoeher">＋ 500 ft</button></div>
+    <div class="wahl" style="margin-top:6px"><button id="plWeniger">− 10 Liter</button><b id="plSprit"></b><button id="plMehr">＋ 10 Liter</button></div>
+    <h2>Wetter</h2><div class="wahl" id="plWetter"></div>
+    <h2>Die Rechnung</h2><div id="plBeine"></div><p id="plSumme" class="hinweis"></p><div id="plHinweise"></div>
+    <button id="plLos">Losfliegen</button><button id="plZurueck">Zurück zum Menü</button>
+  </div>
+</div>
 <div id="pause">Pause<br><small>P = weiter · N = Menü</small></div>
 <div id="menue">
   <div class="karte">
@@ -40,6 +58,9 @@
     <div class="wahl" id="wListe" style="margin-top:8px"></div><p id="listeText" class="hinweis"></p>
     <button id="bGanz">Zum Flugzeug gehen</button>
     <details><summary id="buchKopf">Flugbuch</summary><div id="buchListe"></div></details>
+    <h2 class="gross">Überlandflug</h2>
+    <p class="hinweis">Von Platz zu Platz durch das Alpenvorland: Auf der Karte eine Strecke planen (Kurs, Zeit, Sprit), Wegpunkte abfliegen, am Flugplatz funken und am Ziel landen. Sechs Flugplätze zwischen Augsburg, München, dem Inn und den Bergen.</p>
+    <button id="bPlan">Flug planen</button>
     <h2 class="gross">Freier Flug</h2>
     <h2>Wo geht es los?</h2><div class="wahl" id="wStart"></div><p id="startText" class="hinweis"></p>
     <h2>Wetter</h2><div class="wahl" id="wWetter"></div>

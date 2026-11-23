@@ -4,10 +4,16 @@ import { FT, GRAD } from './flugzeuge.js';
 import { mitHilfe, STUFEN, STUFEN_TEXT } from './hilfen.js';
 import { neueLuft, WETTER } from './atmosphaere.js';
 import { PLATZ, bodenHoehe, platzrunde, anflugweg } from './platz.js';
+import { NN, NM } from './region.js';
+import { grad3, FEUER, feuerAnzeige, AUSFLUEGE } from './navigation.js';
+import { Reise, RAFFER, LITER } from './ueberland.js';
+import { RUF, laut } from './funk.js';
+import { Karte } from './karte.js';
+import { Planer, bediene } from './planer.js';
 import { LEKTIONEN, LEHRERIN, Unterricht, ladeStand, merkeStand, offen } from './schule.js';
 import { maleNachflug } from './nachflug.js';
 import { SCHALTER, neueSysteme, schalte, anlassen, sysSchritt, sysRuder, liter } from './systeme.js';
-import { Ablauf, MODI, ladeBuch, ladeZustand, schreibeBuch, minuten } from './checklisten.js';
+import { Ablauf, MODI, ladeBuch, ladeZustand, schreibeBuch, schreibeEintrag, minuten } from './checklisten.js';
 import { STELLEN, Geher, weltOrt } from './rundgang.js';
 import { Flug } from './flug.js';
 import { STARTS } from './starts.js';
@@ -16,7 +22,7 @@ import { Neigung } from './neigung.js';
 import { KnueppelEmpfang, handyAdresse } from './verbindung.js';
 import { Welt } from './welt.js';
 import { baueLerche } from './flugzeugbau.js';
-import { maleBrett, maleHud, maleWind, BRETT_ANTEIL } from './instrumente.js';
+import { maleBrett, maleHud, maleWind, maleNavi, BRETT_ANTEIL } from './instrumente.js';
 import { baueTouch } from './touch.js';
 import { Klang } from './klang.js';
 import { Kamera } from './kamera.js';
@@ -47,8 +53,11 @@ let ablauf = null, geher = null, brettAuf = false, listeAuf = true, panelStand =
 // Welche Hilfe gilt gerade? Manche Lektion braucht mindestens „mittel“ (beim Abriss muss der Schutz aus sein).
 const hilfeJetzt = () => unterricht && unterricht.l.hilfeMin && STUFEN.indexOf(E.hilfe) < STUFEN.indexOf(unterricht.l.hilfeMin) ? unterricht.l.hilfeMin : E.hilfe;
 // Welcher Flugweg in der Luft gehört zu diesem Flug? In der Lektion sagt es die Lektion, sonst der Startort.
-const wegJetzt = () => geher ? null : unterricht ? unterricht.l.weg : E.start === 'anflug' ? 'anflug' : 'runde';
-const umwelt = { wind: (p, t) => luft.wind(p, t), boden: bodenHoehe };
+const wegJetzt = () => geher || reise ? null : unterricht ? unterricht.l.weg : E.start === 'anflug' ? 'anflug' : 'runde';
+// Überlandflug (Stufe 4): die Reise mit Navi und Funk, die Spur für die Karte, was im Funk zuletzt gesagt wurde
+let reise = null, reiseSpur = [], kartenAuf = false, kartenZeit = 0, kartenFolgt = true, funkStand = '', funkVerlauf = [], funkZahl = 0, funkZeit = 0, funkTipp = '';
+// Der Wind hängt von der Höhe über dem Boden ab (am Boden bremst die Erde ihn) – und der Boden liegt nicht überall gleich hoch
+const umwelt = { wind: (p, t) => luft.wind([p[0], p[1] - bodenHoehe(p[0], p[2]), p[2]], t), boden: bodenHoehe };
 
 // ---------------------------------------------------------------- Meldungen oben im Bild
 function melde(text, art = 'info', sek = 6) {
@@ -59,13 +68,16 @@ function melde(text, art = 'info', sek = 6) {
 
 // ---------------------------------------------------------------- Flug beginnen
 function los(lektion) {
-  const l = lektion && lektion.schritte ? lektion : null, ganz = lektion === 'ganz';
+  const l = lektion && lektion.schritte ? lektion : null, ganz = lektion === 'ganz', plan = lektion && lektion.punkte ? lektion : null;
   // In der Flugschule ist immer ruhiges Wetter. Eine Lektion beginnt an einem der Startorte oder schon in der Luft.
-  const s = l ? { lage: l.lage || STARTS[l.start].lage } : ganz ? STARTS.vorfeld : STARTS[E.start];
+  const s = l ? { lage: l.lage || STARTS[l.start].lage } : ganz ? STARTS.vorfeld : plan ? { lage: {} } : STARTS[E.start];
   unterricht = l ? new Unterricht(l) : null; spur = []; spurZeit = 0; marken = []; endeZeit = 0; lehrerZeit = 0; ergebnisAuf = false;
   const zustand = ganz ? ladeZustand(localStorage) : null;
-  f = neuesFlugzeug('lerche', ganz ? { sprit: zustand.sprit } : {}); luft = neueLuft(WETTER[l ? 'ruhig' : E.wetter]); flug = new Flug();
-  setze(f, { ...s.lage, boden: 0 });
+  reise = plan ? new Reise(plan, WETTER[E.wetter]) : null; reiseSpur = []; kartenAuf = false; kartenFolgt = true; funkStand = ''; funkVerlauf = []; funkZeit = 0; funkTipp = '';
+  $('funk').classList.remove('an'); $('flugkarte').classList.remove('an'); document.body.classList.remove('mit-funk');
+  f = neuesFlugzeug('lerche', ganz ? { sprit: zustand.sprit } : plan ? { sprit: plan.sprit * LITER } : {}); luft = neueLuft(WETTER[l ? 'ruhig' : E.wetter]); flug = new Flug();
+  setze(f, plan ? reise.startLage() : { ...s.lage, boden: 0 });
+  if (plan) { f.nn = NN; f.trimm = -0.35; }                 // beim Überlandflug zeigt der Höhenmesser die Höhe über dem Meer
   if (s.lage.tempo) { const w = luft.wind(f.p, 0); f.v[0] += w[0]; f.v[2] += w[2]; }      // in der Luft: Der Wind trägt das Flugzeug von Anfang an mit
   // Der ganze Flug beginnt draußen vor dem geparkten Flugzeug: Motor aus, alles gesichert
   ablauf = null; geher = null; brettAuf = false; panelStand = '';
@@ -76,6 +88,7 @@ function los(lektion) {
   $('ergebnis').classList.remove('an'); $('pause').classList.remove('an'); $('schule').classList.toggle('an', !!l); document.body.classList.toggle('in-schule', !!l);
   if (l) { $('sLehrer').textContent = ''; $('sAufgabe').textContent = ''; $('sName').textContent = l.name; if (hilfeJetzt() !== E.hilfe) melde('In dieser Lektion ist der Schutz vor dem Abriss ausgeschaltet (Hilfen: mittel).', 'info', 8); }
   else if (ganz) { melde('Dein Flugzeug steht geparkt auf dem Vorfeld. Zuerst der Außencheck: Geh zu den gelben Kreisen und sieh nach dem Rechten.', 'info', 12); melde(luft.text + ' · ' + MODI[E.liste].split(':')[0], 'info', 8); }
+  else if (plan) { const b = reise.rechnung.beine[0]; melde(`${reise.start === reise.ziel ? 'Rundflug ab ' + reise.start.name : `Überlandflug von ${reise.start.name} nach ${reise.ziel.name}`}. Erstes Bein: Kurs ${grad3(b.steuer)}°, ${b.strecke.toFixed(0)} NM nach ${b.nach.name}, Reisehöhe ${plan.hoehe} ft. Zuerst funken, dann starten.`, 'info', 14); melde(luft.text + ' · Hilfen: ' + E.hilfe + ' · M = Karte, O = Zeitraffer', 'info', 10); }
   else { melde(s.text, 'info', 9); melde(luft.text + ' · Hilfen: ' + E.hilfe, 'info', 7); }
   malePanels();
   klang.stumm = !E.ton; klang.start();
@@ -83,7 +96,7 @@ function los(lektion) {
   empfang.senden({ k: 'mitte' });
   window.__flugsim.f = f;
 }
-function menue() { pause = true; imMenue = true; unterricht = null; ablauf = null; geher = null; brettAuf = false; malePanels(); ergebnisAuf = false; stimmeAus(); $('ergebnis').classList.remove('an'); $('schule').classList.remove('an'); document.body.classList.remove('in-schule'); $('menue').classList.remove('zu'); maleMenue(); }
+function menue() { pause = true; imMenue = true; reise = null; $('funk').classList.remove('an'); $('flugkarte').classList.remove('an'); document.body.classList.remove('mit-funk'); unterricht = null; ablauf = null; geher = null; brettAuf = false; malePanels(); ergebnisAuf = false; stimmeAus(); $('ergebnis').classList.remove('an'); $('schule').classList.remove('an'); document.body.classList.remove('in-schule'); $('menue').classList.remove('zu'); maleMenue(); }
 const stimmeAus = () => { try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) { /* egal */ } };
 
 // ---------------------------------------------------------------- Flugschule: was die Lehrerin sagt, die Aufgabe, das Ergebnis
@@ -109,7 +122,7 @@ function schuleSchritt(sek) {
 }
 function zeigeErgebnis() {
   const u = unterricht, r = u.ergebnis, nr = LEKTIONEN.indexOf(u.l);
-  ergebnisAuf = true; pause = true; $('schule').classList.remove('an');
+  ergebnisAuf = true; pause = true; $('schule').classList.remove('an'); $('eBild').style.height = ''; $('eLeg').style.display = '';
   if (r.geschafft) merkeStand(localStorage, u.l.id, r.sterne);
   $('eTitel').textContent = u.l.name + (r.geschafft ? ' – geschafft!' : ' – noch nicht geschafft');
   $('eSterne').textContent = r.geschafft ? '★'.repeat(r.sterne) + '☆'.repeat(3 - r.sterne) : '';
@@ -142,6 +155,8 @@ eingabe.wenn = {
   },
   pause() { if (imMenue || ergebnisAuf) return; pause = !pause; $('pause').classList.toggle('an', pause); },
   neu() { menue(); },
+  karte() { if (!reise || ergebnisAuf) return; kartenAuf = !kartenAuf; $('flugkarte').classList.toggle('an', kartenAuf); if (kartenAuf) { kartenFolgt = true; flugKarte.masse(); flugKarte.mpp = 140; maleFlugkarte(); } },
+  raffer() { if (!reise || pause || reise.fertig) return; if (reise.raffer) reise.rafferAus('Zeitraffer aus.'); else reise.rafferAn(f); },
   hilfe() { E.hilfe = STUFEN[(STUFEN.indexOf(E.hilfe) + 1) % STUFEN.length]; merke(); melde(STUFEN_TEXT[E.hilfe], 'info', 4); }
 };
 empfang.wennDaten = m => eingabe.vomHandy(m);
@@ -200,12 +215,12 @@ $('lKopf').onclick = () => eingabe.druecke('liste');
 $('bZu').onclick = () => eingabe.druecke('brett');
 $('lBuch').onclick = () => schreibeFlugbuch();
 const sterne = (n, von = 5) => '★'.repeat(n) + '☆'.repeat(von - n);
-const buchZeile = b => `${new Date(b.datum).toLocaleDateString('de-DE')}  ·  ${minuten(b.dauer)} min (in der Luft ${minuten(b.flugZeit)})  ·  Landung ${b.landung ? sterne(b.landung) : '–'}  ·  Regeln ${sterne(b.regeln)}${b.bruch ? '  ·  Bruch' : ''}${b.vergessen.length ? '  ·  vergessen: ' + b.vergessen.map(v => v.text).join(', ') : ''}`;
+const buchZeile = b => `${new Date(b.datum).toLocaleDateString('de-DE')}  ·  ${b.strecke ? `${b.strecke} (${b.nm} NM)  ·  ` : ''}${minuten(b.dauer)} min (in der Luft ${minuten(b.flugZeit)})  ·  Landung ${b.landung ? sterne(b.landung) : '–'}  ·  ${b.strecke ? 'Überlandflug' : 'Regeln'} ${sterne(b.regeln)}${b.bruch ? '  ·  Bruch' : ''}${b.vergessen.length ? '  ·  vergessen: ' + b.vergessen.map(v => v.text).join(', ') : ''}`;
 // Flug beenden: Eintrag ins Flugbuch und die Nachbesprechung zeigen
 function schreibeFlugbuch() {
   if (!ablauf || !ablauf.kannEnden(f)) return;
   const b = ablauf.ende(f, flug); schreibeBuch(localStorage, b, f);
-  ergebnisAuf = true; pause = true; malePanels();
+  ergebnisAuf = true; pause = true; malePanels(); $('eBild').style.height = ''; $('eLeg').style.display = '';
   $('eTitel').textContent = b.bruch ? 'Flugbuch – das ging schief' : 'Flugbuch – Flug eingetragen';
   $('eSterne').textContent = '';
   $('eText').textContent = `Dauer ${minuten(b.dauer)} Minuten, davon ${minuten(b.flugZeit)} in der Luft. ${b.landungen} ${b.landungen === 1 ? 'Landung' : 'Landungen'}. Im Tank bleiben ${b.sprit} Liter.  Regeln: ${sterne(b.regeln)}`
@@ -238,6 +253,68 @@ function maleSchilder(W, H) {
   }
 }
 
+// ---------------------------------------------------------------- Überlandflug: Navi, Funk, Karte im Flug, Auswertung
+const flugKarte = new Karte($('fkBild'));
+bediene($('fkBild'), flugKarte, () => { kartenFolgt = false; maleFlugkarte(); });
+$('fkPlus').onclick = () => { flugKarte.zoome(0.7); maleFlugkarte(); }; $('fkMinus').onclick = () => { flugKarte.zoome(1.4); maleFlugkarte(); };
+$('fkMitte').onclick = () => { kartenFolgt = true; maleFlugkarte(); }; $('fkZu').onclick = () => eingabe.druecke('karte');
+function maleFlugkarte() {
+  if (!reise) return;
+  if (kartenFolgt) { flugKarte.mx = f.p[0]; flugKarte.mz = f.p[2]; }
+  flugKarte.male({ plan: reise.plan.punkte, nr: reise.navi.nr, f, spur: reiseSpur });
+  const L = reise.navi.lage(f), b = reise.rechnung.beine[reise.navi.nr - 1];
+  $('fkText').textContent = `Nächster Punkt: ${L.nach.name} · ${(L.weit / NM).toFixed(1)} NM · Kurs laut Plan ${grad3(b.steuer)}° · Du fliegst ${grad3(f.kurs)}°`;
+}
+// Was der Navi-Kasten oben rechts zeigt: der nächste Punkt und das nächste Funkfeuer
+function naviInfo() {
+  const L = reise.navi.lage(f), b = reise.rechnung.beine[reise.navi.nr - 1];
+  let F = FEUER[0], d = Infinity; for (const x of FEUER) { const e = Math.hypot(x.x - f.p[0], x.z - f.p[2]); if (e < d) { d = e; F = x; } }
+  const a = feuerAnzeige(f, F, f.kurs);
+  return { name: L.nach.name, nm: L.weit / NM, min: L.min, kurs: grad3(b.steuer), peil: L.peil, ablage: reise.navi.letztes && L.weit < 6000 ? 0 : L.ablage, raffer: reise.raffer ? RAFFER : 0, feuer: { id: F.id, peil: grad3(a.peil), dme: a.dme } };
+}
+function funkWahl(i) { if (!reise || pause || !reise.funk.frage) return false; reise.funk.waehle(i); return true; }
+eingabe.ziffer = n => n >= 1 && n <= 3 && funkWahl(n - 1);
+// Der Funk-Kasten: was zuletzt gesagt wurde und – wenn man dran ist – die drei Antworten
+function maleFunk(sek) {
+  const F = reise.funk;
+  for (const s of F.sagen.splice(0)) { funkVerlauf.push(s); if (funkVerlauf.length > 3) funkVerlauf.shift(); funkZahl++; funkZeit = 14; funkTipp = s.tipp || ''; if (s.wer === 'Info') { stimmeAus(); klang.sprich(laut(s.text)); } }
+  if (!F.frage) { funkZeit -= sek; if (funkZeit <= 0 && funkVerlauf.length) { funkVerlauf = []; funkZahl++; } }
+  const stand = [F.nr, F.stufe, !!F.frage, funkZahl].join();
+  if (stand === funkStand) return; funkStand = stand;
+  const an = !!F.frage || funkVerlauf.length > 0;
+  $('funk').classList.toggle('an', an); document.body.classList.toggle('mit-funk', an);
+  $('fuKopf').textContent = `Funk · ${RUF}` + (F.frage ? ` · ${F.frage.name}` : '');
+  $('fuVerlauf').innerHTML = ''; for (const s of funkVerlauf) { const d = document.createElement('div'); d.className = s.wer === 'Du' ? 'du' : ''; d.innerHTML = '<b></b> '; d.querySelector('b').textContent = s.wer + ':'; d.append(s.text); $('fuVerlauf').appendChild(d); }
+  $('fuTipp').textContent = F.frage ? funkTipp : '';
+  $('fuFrage').textContent = F.frage ? `${F.frage.was} – was sagst du?` : '';
+  $('fuAntworten').innerHTML = '';
+  if (F.frage) F.frage.antworten.forEach((a, i) => { const k = document.createElement('button'); k.innerHTML = `<b>${i + 1}</b>`; k.append(a.text); k.onclick = () => { k.blur(); funkWahl(i); }; $('fuAntworten').appendChild(k); });
+}
+function reiseSchritt(sek) {
+  const R = reise; R.schritt(f, sek, flug);
+  for (const m of R.meldungen.splice(0)) melde(m.text, m.art, 8);
+  maleFunk(sek);
+  spurZeit -= sek; if (spurZeit <= 0 && !R.fertig) { spurZeit = 2; reiseSpur.push([f.p[0], f.p[2]]); }
+  kartenZeit -= sek; if (kartenAuf && kartenZeit <= 0) { kartenZeit = 0.3 * (R.raffer ? RAFFER : 1); maleFlugkarte(); }
+  if (R.fertig && !ergebnisAuf) { endeZeit += sek; if (endeZeit > 2.5) zeigeReise(); }
+}
+// Auswertung: fünf Sterne, die Karte mit Plan und geflogenem Weg, Eintrag ins Flugbuch
+function zeigeReise() {
+  const R = reise, r = R.ergebnis(f);
+  ergebnisAuf = true; pause = true; kartenAuf = false; $('flugkarte').classList.remove('an'); $('funk').classList.remove('an'); document.body.classList.remove('mit-funk');
+  schreibeEintrag(localStorage, { datum: r.datum, dauer: r.dauer, flugZeit: r.flugZeit, landung: r.landung, regeln: r.sterne, bruch: !!r.bruch, vergessen: [], strecke: `${r.von} → ${r.nach}`, nm: Math.round(r.strecke) });
+  $('eTitel').textContent = r.bruch ? 'Überlandflug – das ging schief' : r.amZiel ? `Überlandflug – gelandet in ${r.nach}` : 'Überlandflug – nicht am Ziel gelandet';
+  $('eSterne').textContent = sterne(r.sterne);
+  $('eText').textContent = `Von ${r.von}${r.ueber.length ? ' über ' + r.ueber.join(' und ') : ''} ${r.von === r.nach ? 'zurück nach' : 'nach'} ${r.nach}: ${Math.round(r.strecke)} NM geplant, ${Math.round(r.min)} Minuten in der Luft. Der Flug steht im Flugbuch.`;
+  $('eLandung').textContent = '';
+  $('eFehler').innerHTML = ''; for (const z of r.zeilen) { const li = document.createElement('li'); li.textContent = `${z.ok ? '★' : '☆'} ${z.name}: ${z.text}`; $('eFehler').appendChild(li); }
+  $('eFehlerTitel').textContent = 'Die fünf Sterne'; $('eFehlerTitel').style.display = ''; $('eLeg').style.display = 'none';
+  $('eWeiter').style.display = ''; $('eWeiter').textContent = 'Neuen Flug planen'; $('eWeiter').onclick = () => { menue(); planer.auf(); };
+  $('eNochmal').textContent = 'Noch einmal'; $('eNochmal').onclick = () => los(R.plan);
+  $('ergebnis').classList.add('an');
+  $('eBild').style.height = '340px'; const k = new Karte($('eBild')); k.passe([...R.plan.punkte, ...reiseSpur.map(([x, z]) => ({ x, z }))], 6000); k.male({ plan: R.plan.punkte, spur: reiseSpur, f });
+}
+
 // ---------------------------------------------------------------- Kameras (js/kamera.js)
 const kam = new Kamera(welt, lerche, eingabe, E), blick = kam.blick;
 const V = new THREE.Vector3();          // Hilfs-Punkt für die Schilder beim Außencheck
@@ -251,7 +328,8 @@ function maleAnzeigen() {
   if (imMenue) return;
   if (geher) { maleSchilder(W, H); return; }
   if (E.kamera === 'cockpit' && !blick.brettWeg) maleBrett(hg, W, H, f); else maleHud(hg, W, H, f);
-  maleWind(hg, W, H, f, luft.wind(f.p, f.t));
+  maleWind(hg, W, H, f, umwelt.wind(f.p, f.t));
+  if (reise) maleNavi(hg, W, H, f, naviInfo(), touch ? 56 : 14);
 }
 
 // ---------------------------------------------------------------- ein Bild
@@ -267,22 +345,24 @@ function bild(sek, ohneBild) {
   if (window.__flugsim.pilot && !pause) e = window.__flugsim.pilot(f, sek, unterricht) || e;      // nur zum Testen: ein künstlicher Pilot fliegt
   if (!pause) {
     f.trimm = Math.max(-1, Math.min(1, f.trimm + eingabe.trimm * 0.25 * sek));
-    rest = Math.min(rest + sek, 0.1);
+    const mal = reise && reise.raffer ? RAFFER : 1;        // im Zeitraffer läuft die Zeit schneller: mehr Rechenschritte je Bild
+    rest = Math.min(rest + sek * mal, 0.1 * mal);
     while (rest >= TAKT) {
       const warBoden = f.amBoden, n = f.ereignisse.length;
-      schritt(f, sysRuder(mitHilfe(e, f, hilfeJetzt(), TAKT), f), TAKT, umwelt); sysSchritt(f, e, TAKT);
+      schritt(f, sysRuder(mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT), f), TAKT, umwelt); sysSchritt(f, e, TAKT);
       if (f.ereignisse.length > n) { const a = f.ereignisse[f.ereignisse.length - 1]; klang.rumms(a.sink); empfang.senden({ k: 'r', s: a.sink > 1.8 ? 'schwer' : 'leicht' }); }
       if (warBoden && !f.amBoden && f.hoeheGrund > 0.3 && !flug.abgehoben) { flug.abgehoben = true; }
       rest -= TAKT;
     }
-    flug.schritt(f, sek);
+    flug.schritt(f, sek * mal);
     for (const m of flug.meldungen.splice(0)) melde(m.text, m.art, m.art === 'info' ? 5 : 9);
     if (flug.ruf) { klang.sprich(flug.ruf); flug.ruf = null; }
     if (unterricht) schuleSchritt(sek);
     if (ablauf) ganzSchritt(sek);
+    if (reise) reiseSchritt(sek * mal);
   }
   lerche.stelle(f, pause ? 0 : sek); welt.schritt(f, luft); marken3d.visible = !!geher; if (geher) stelleMarken(); { const w = wegJetzt(); for (const k in welt.wege) welt.wege[k].visible = !!E.weg && k === w; } kam.stelle(sek, f, geher); if (!ohneBild) { welt.male(); maleAnzeigen(); } klang.schritt(f, pause);
-  if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher);
+  if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher, !!reise);
   empfang.pruefen();
   infoZeit -= sek;
   if (infoZeit <= 0 && empfang.verbunden) { infoZeit = 0.1; empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2) }); }
@@ -332,6 +412,8 @@ function maleMenue() {
 }
 $('bLos').onclick = () => los(null);
 $('bGanz').onclick = () => los('ganz');
+const planer = new Planer(E, merke, plan => los(plan), () => maleMenue());
+$('bPlan').onclick = () => planer.auf();
 $('bAlles').onclick = () => { E.allesOffen = !E.allesOffen; merke(); maleMenue(); };
 $('eMenue').onclick = menue;
 $('bWeg').onclick = () => { E.weg = !E.weg; merke(); maleMenue(); };
@@ -370,13 +452,15 @@ $('tasten').innerHTML = TASTEN_HILFE.map(([t, was]) => `<div><b>${t}</b><span>${
   gl.addEventListener('wheel', ev => { if (!imMenue && E.kamera === 'hinten') { blick.weit = Math.max(6, Math.min(120, blick.weit * Math.exp(ev.deltaY * 0.0012))); ev.preventDefault(); } }, { passive: false });
 }
 
-const touch = istTouch ? baueTouch(eingabe, { brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'), kamera: () => eingabe.druecke('kamera'), menue, weg: () => eingabe.druecke('weg'), blickMitte: () => kam.mitte(), mitte: () => { neigung.mitte(); empfang.senden({ k: 'mitte' }); melde('Diese Haltung ist jetzt die Mitte', 'info', 2); }, neigen: () => $('bNeigen').onclick() }) : null;
+const touch = istTouch ? baueTouch(eingabe, { karte: () => eingabe.druecke('karte'), raffer: () => eingabe.druecke('raffer'), brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'), kamera: () => eingabe.druecke('kamera'), menue, weg: () => eingabe.druecke('weg'), blickMitte: () => kam.mitte(), mitte: () => { neigung.mitte(); empfang.senden({ k: 'mitte' }); melde('Diese Haltung ist jetzt die Mitte', 'info', 2); }, neigen: () => $('bNeigen').onclick() }) : null;
 document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
-window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
+window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get reise() { return reise; }, planer, flugKarte, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
 else if (frage.has('ganz')) { if (MODI[frage.get('ganz')]) E.liste = frage.get('ganz'); los('ganz'); }
+else if (frage.has('planer')) planer.auf();
+else if (frage.has('ueberland')) { E.plan = { ids: [...(AUSFLUEGE[+frage.get('ueberland')] || AUSFLUEGE[0]).punkte], hoehe: (AUSFLUEGE[+frage.get('ueberland')] || AUSFLUEGE[0]).hoehe, sprit: 90 }; los(planer.plan()); }
 else if (frage.has('start')) { if (STARTS[frage.get('start')]) E.start = frage.get('start'); los(null); }
 requestAnimationFrame(schleife);

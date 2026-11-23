@@ -60,7 +60,7 @@ function horizont(g, x, y, r, f) {
 // Höhenmesser: langer Zeiger = Hunderter (eine Runde = 1000 ft), kurzer = Tausender. Dazu die Zahl im Fenster.
 function hoehe(g, x, y, r, f) {
   rund(g, x, y, r, 'ft');
-  const ft = f.p[1] / FT + 1.1 / FT * 0;
+  const ft = (f.p[1] + (f.nn || 0)) / FT;      // f.nn: beim Überlandflug zeigt der Höhenmesser die Höhe über dem Meer
   striche(g, r, -Math.PI / 2, 1.5 * Math.PI, 10, 0.13); striche(g, r, -Math.PI / 2, 1.5 * Math.PI, 50, 0.06, 0.012);
   for (let i = 0; i < 10; i++) zahl(g, r, -Math.PI / 2 + i * TAU / 10, String(i), 0.66, 0.19);
   g.fillStyle = '#1d2024'; g.fillRect(-r * 0.34, -r * 0.4, r * 0.68, r * 0.24); g.fillStyle = '#e8f0ff'; g.font = `bold ${r * 0.19}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -160,7 +160,7 @@ export function maleHud(g, W, H, f) {
   g.fillStyle = f.abriss > 0.3 ? '#ff5a4a' : '#fff'; g.font = `bold ${24 * s}px sans-serif`; g.textAlign = 'right'; g.fillText(String(Math.round(kn)), bx + 62 * s, by + 1);
   g.fillStyle = '#9fb0bd'; g.font = `${12 * s}px sans-serif`; g.textAlign = 'left'; g.fillText('kn', bx + 4 * s, by - bh / 2 - 10 * s);
   // rechts: Höhe und Steigen/Sinken
-  const rx = W - 110 * s, ft = f.p[1] / FT, fpm = steigZeigt(f) / FT * 60;
+  const rx = W - 110 * s, ft = (f.p[1] + (f.nn || 0)) / FT, fpm = steigZeigt(f) / FT * 60;
   kasten(rx, by - bh / 2, 92 * s, bh);
   g.save(); g.beginPath(); g.rect(rx, by - bh / 2, 92 * s, bh); g.clip();
   g.fillStyle = '#cfd8e0'; g.font = `${14 * s}px sans-serif`; g.textAlign = 'left';
@@ -215,5 +215,27 @@ export function maleWind(g, W, H, f, w) {
   g.fillText(`${vorn >= 0 ? 'von vorn' : 'von hinten'} ${Math.round(Math.abs(vorn))} kn`, x + 66 * s, cy + 3 * s);
   g.fillStyle = Math.abs(seite) >= 8 ? '#ffc43c' : '#cfd8e0';
   g.fillText(`${seite >= 0 ? 'von rechts' : 'von links'} ${Math.round(Math.abs(seite))} kn`, x + 66 * s, cy + 19 * s);
+  g.restore();
+}
+
+// ---------------------------------------------------------------- Navi-Anzeige beim Überlandflug (oben rechts)
+// n = { name, nm, min, kurs (Steuerkurs laut Plan, Grad als Text), peil (Richtung zum Punkt, Bogenmaß), ablage (Meter, + = rechts der Linie),
+//       raffer, feuer: { id, peil, dme } }
+// Die kleine Nadel zeigt, wohin es zum Wegpunkt geht (oben = geradeaus). Der Balken darunter: Wo liegt die geplante Linie?
+export function maleNavi(g, W, H, f, n, oben = 14) {
+  const s = Math.min(W, H) / 700, b = 208 * s, x = W - b - 14 * s, y = oben, h = (n.feuer ? 112 : 92) * s, r = 22 * s, cx = x + 30 * s, cy = y + 32 * s;
+  g.save(); g.textBaseline = 'middle'; g.textAlign = 'left';
+  g.fillStyle = 'rgba(10,14,18,0.6)'; g.beginPath(); g.roundRect(x, y, b, h, 8 * s); g.fill();
+  g.strokeStyle = '#8f98a3'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke();
+  g.save(); g.translate(cx, cy); g.rotate(n.peil - f.kurs); g.fillStyle = '#ff5ab4'; g.beginPath(); g.moveTo(0, -r - 3 * s); g.lineTo(-7 * s, -r * 0.2); g.lineTo(0, -r * 0.45); g.lineTo(7 * s, -r * 0.2); g.closePath(); g.fill(); g.restore();
+  g.fillStyle = '#ffd7ee'; g.font = `600 ${14 * s}px sans-serif`; g.fillText('→ ' + n.name, x + 62 * s, cy - 15 * s, b - 68 * s);
+  g.fillStyle = '#fff'; g.font = `${13.5 * s}px sans-serif`; g.fillText(`${n.nm < 10 ? n.nm.toFixed(1) : Math.round(n.nm)} NM` + (n.min != null ? ` · ${Math.max(1, Math.round(n.min))} min` : ''), x + 62 * s, cy + 2 * s);
+  g.fillStyle = '#cfd8e0'; g.font = `${12.5 * s}px sans-serif`; g.fillText(`Kurs ${n.kurs}°`, x + 62 * s, cy + 19 * s);
+  // Balken: Mitte = auf der Linie. Der Punkt zeigt die Linie: liegt er rechts, muss man nach rechts.
+  const by = y + 76 * s, bw = b - 28 * s, ab = clamp(-n.ablage / 3000, -1, 1);
+  g.fillStyle = '#39424c'; g.fillRect(x + 14 * s, by - 2 * s, bw, 4 * s); g.fillStyle = '#9fb0bd'; g.fillRect(x + 14 * s + bw / 2 - 1, by - 7 * s, 2, 14 * s);
+  g.fillStyle = Math.abs(n.ablage) > 1852 ? '#ffc43c' : '#ff5ab4'; g.beginPath(); g.arc(x + 14 * s + bw / 2 + ab * bw / 2, by, 6 * s, 0, TAU); g.fill();
+  if (n.feuer) { g.fillStyle = '#9fc0ff'; g.font = `${12.5 * s}px sans-serif`; g.fillText(`Funkfeuer ${n.feuer.id}: ${n.feuer.peil}° · ${n.feuer.dme.toFixed(1)} NM`, x + 12 * s, y + 98 * s, b - 20 * s); }
+  if (n.raffer) { g.fillStyle = '#ffc43c'; g.font = `700 ${22 * s}px sans-serif`; g.textAlign = 'center'; g.fillText(`▶▶ Zeitraffer ×${n.raffer}`, W / 2, H * 0.3); }
   g.restore();
 }

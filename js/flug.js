@@ -1,14 +1,15 @@
 // Flugsimulator – der Ablauf eines Flugs und die Bewertung der Landung. Ohne Grafik.
 import { KN, FT, GRAD } from './flugzeuge.js';
-import { PLATZ, anflug, bahnFuer } from './platz.js';
+import { naechsterPlatz, bahnLage } from './region.js';
 
 const fpm = v => Math.round(v / FT * 60);
 
 // Note für ein Aufsetzen (e kommt aus der Physik): 1 bis 5 Sterne und Sätze, was gut war und was besser geht
 export function landeNote(e) {
-  const richtung = bahnFuer(e.kurs), a = anflug([e.x, 0, e.z], richtung);
+  // Auf welchem Platz und in welcher Richtung der Bahn? (der nächste Platz; die Bahnrichtung, in die das Flugzeug schaut)
+  const P = naechsterPlatz(e.x, e.z).platz, ende = Math.cos(e.kurs - P.kurs) >= 0 ? 0 : 1, a = bahnLage(P, ende, e.x, e.z);
   const sink = fpm(e.sink), quer = Math.abs(a.quer), schraeg = Math.abs(e.schraeg) / GRAD, roll = Math.abs(e.roll) / GRAD;
-  const aufBahn = quer < PLATZ.breit / 2 && a.laengs > 0 && a.laengs < PLATZ.lang;
+  const aufBahn = quer < P.breit / 2 && a.laengs > 0 && a.laengs < P.lang, spaet = Math.min(450, P.lang * 0.45);
   const teile = [];
   let punkte = 100;
   const ab = (n, text) => { punkte -= n; if (text) teile.push(text); };
@@ -17,7 +18,7 @@ export function landeNote(e) {
   else if (sink > 350) ab(25, `Hart aufgesetzt (${sink} ft/min). Beim Abfangen etwas mehr ziehen.`);
   else if (sink > 200) ab(10, `Etwas fest aufgesetzt (${sink} ft/min).`);
   if (aufBahn && quer > 5) ab(15, `${quer.toFixed(0)} m neben der Mittellinie.`); else if (aufBahn && quer > 2) ab(5);
-  if (aufBahn && a.laengs > 450) ab(20, `Spät aufgesetzt (${Math.round(a.laengs)} m hinter der Schwelle). Die Bahn wird knapp.`);
+  if (aufBahn && a.laengs > spaet) ab(20, `Spät aufgesetzt (${Math.round(a.laengs)} m hinter der Schwelle). Die Bahn wird knapp.`);
   else if (aufBahn && a.laengs < 30) ab(10, 'Sehr knapp hinter der Schwelle aufgesetzt.');
   if (schraeg > 8) ab(20, 'Schräg zur Bahn aufgesetzt: kurz vor dem Aufsetzen mit dem Seitenruder gerade stellen.'); else if (schraeg > 4) ab(8);
   if (roll > 8) ab(15, 'Mit hängender Fläche aufgesetzt.');
@@ -29,7 +30,7 @@ export function landeNote(e) {
   else if (!teile.length && tempo <= 52 && e.nick > 3 * GRAD) teile.push(sink < 120 ? 'Schön ausgeschwebt und butterweich aufgesetzt!' : 'Schön ausgeschwebt: langsam und mit der Nase oben aufgesetzt.');
   const sterne = Math.max(1, Math.min(5, Math.round(punkte / 20)));
   if (!teile.length) teile.push(sink < 120 ? 'Butterweich und mitten auf der Bahn!' : 'Saubere Landung.');
-  return { sterne, punkte: Math.max(0, punkte), sink, quer, laengs: a.laengs, aufBahn, text: teile.join(' ') };
+  return { sterne, punkte: Math.max(0, punkte), sink, quer, laengs: a.laengs, aufBahn, platz: P.id, ende, text: teile.join(' ') };
 }
 
 // Was bei welchem Bruch passiert ist
