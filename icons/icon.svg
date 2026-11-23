@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- App-Symbol: die Lerche von oben, sie steigt über dem Alpenvorland in den Himmel -->
+  <defs>
+    <linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c5fb8"/><stop offset="0.62" stop-color="#6fb7ee"/><stop offset="1" stop-color="#d9efff"/></linearGradient>
+    <linearGradient id="berg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d7f9c"/><stop offset="1" stop-color="#3f6a5a"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#himmel)"/>
+  <circle cx="800" cy="210" r="92" fill="#fff4c2" opacity="0.95"/>
+  <path d="M0 760 L150 640 L250 720 L400 560 L520 700 L640 610 L790 730 L900 650 L1024 740 V1024 H0 Z" fill="url(#berg)"/>
+  <path d="M400 560 L445 608 L420 604 L400 632 L378 600 L352 610 Z M640 610 L672 640 L650 640 L636 660 L620 636 L600 644 Z" fill="#f4f9fd"/>
+  <path d="M0 850 Q260 770 520 850 T1024 830 V1024 H0 Z" fill="#3d8a4a"/>
+  <path d="M0 930 Q300 860 600 930 T1024 910 V1024 H0 Z" fill="#2f7340"/>
+  <g transform="translate(500 470) rotate(-32)">
+    <ellipse cx="14" cy="26" rx="330" ry="56" fill="#0b2a4a" opacity="0.18"/>
+    <!-- Rumpf -->
+    <path d="M-250 0 Q-250 -16 -200 -22 L120 -40 Q215 -40 250 0 Q215 40 120 40 L-200 22 Q-250 16 -250 0 Z" fill="#ffffff"/>
+    <!-- Flügel (Hochdecker) -->
+    <path d="M40 -330 Q95 -336 120 -318 L132 318 Q95 336 40 330 Q22 0 40 -330 Z" fill="#ffffff"/>
+    <path d="M52 -328 L74 -328 L74 328 L52 328 Z" fill="#d6312b"/>
+    <!-- Höhenleitwerk -->
+    <path d="M-248 -110 Q-212 -116 -196 -104 L-190 104 Q-212 116 -248 110 Z" fill="#ffffff"/>
+    <path d="M-244 -108 L-232 -108 L-232 108 L-244 108 Z" fill="#d6312b"/>
+    <!-- Scheibe und Streifen -->
+    <path d="M130 -34 Q178 -34 190 -18 L190 18 Q178 34 130 34 Z" fill="#274a6b"/>
+    <path d="M-200 -5 L120 -8 L120 8 L-200 5 Z" fill="#d6312b"/>
+    <!-- Propeller -->
+    <ellipse cx="256" cy="0" rx="9" ry="96" fill="#1d2731" opacity="0.55"/>
+    <circle cx="252" cy="0" r="15" fill="#d6312b"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "appId": "de.kvb1982.flugsimulator",
+  "appName": "Flugsimulator",
+  "webDir": "www",
+  "backgroundColor": "#0e1318",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false,
+    "backgroundColor": "#0e1318"
+  },
+  "plugins": {
+    "SystemBars": {
+      "hidden": true
+    }
+  }
+}

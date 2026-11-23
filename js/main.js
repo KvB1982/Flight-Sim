@@ -19,6 +19,7 @@ import { STARTS } from './starts.js';
 import { Eingabe, TASTEN_HILFE } from './eingabe.js';
 import { Neigung } from './neigung.js';
 import { KnueppelEmpfang, handyAdresse } from './verbindung.js';
+import { inApp, bibliothek, merkeRolle } from './native.js';
 import { Welt } from './welt.js';
 import { baueLerche } from './flugzeugbau.js';
 import { maleBrett, maleHud, maleWind } from './instrumente.js';
@@ -184,7 +185,16 @@ eingabe.wenn = {
   hilfe() { E.hilfe = STUFEN[(STUFEN.indexOf(E.hilfe) + 1) % STUFEN.length]; merke(); melde(STUFEN_TEXT[E.hilfe], 'info', 4); }
 };
 empfang.wennDaten = m => eingabe.vomHandy(m);
-empfang.wennZustand = z => { if (z !== 'verbunden') { eingabe.handyAn = false; eingabe.handy = null; } else melde('Handy als Steuerknüppel verbunden', 'gut', 4); maleMenue(); };
+empfang.wennZustand = z => {
+  if (z === 'verbunden') melde((empfang.nahVerbunden ? empfang.geraet : 'Handy') + ' als Steuerknüppel verbunden', 'gut', 4);
+  else {
+    // Ist der Steuerknüppel mitten im Flug weg (Funkloch, iPhone gesperrt), hält das Spiel an – sonst fliegt die Lerche führerlos weiter.
+    const flog = eingabe.handyAn && !pause && !imMenue && !ergebnisAuf;
+    eingabe.handyAn = false; eingabe.handy = null;
+    if (flog) { eingabe.druecke('pause'); melde('Der Steuerknüppel ist getrennt. Pause – weiter mit einem Tipp auf den Bildschirm oder P.', 'warn', 8); }
+  }
+  maleMenue();
+};
 
 // ---------------------------------------------------------------- Der ganze Flug: Checkliste am Rand, Schalterbrett, Rundgang, Flugbuch
 function ganzSchritt(sek) {
@@ -394,7 +404,10 @@ function maleMenue() {
   $('bNeigen').classList.toggle('an', neigung.an);
   $('bTon').textContent = 'Ton: ' + (E.ton ? 'an' : 'aus');
   $('bWeg').textContent = 'Flugweg in der Luft zeigen: ' + (E.weg ? 'an' : 'aus'); $('bWeg').classList.toggle('an', !!E.weg);
-  $('handyStand').textContent = { aus: '', wartet: 'wartet auf das Handy …', verbunden: 'verbunden ✔', fehler: 'keine Verbindung zum Vermittler (Internet?)' }[empfang.zustand];
+  $('handyStand').textContent = { aus: '', nah: '', wartet: 'wartet auf das Handy …', verbunden: 'verbunden ✔', fehler: 'keine Verbindung zum Vermittler (Internet?)' }[empfang.zustand];
+  // Nur in der App: der Weg ohne Internet zum iPhone in der Nähe
+  $('nah').classList.toggle('an', inApp);
+  if (inApp) $('nahStand').textContent = empfang.nahVerbunden ? '✅ ' + (empfang.geraet || 'iPhone') + ' ist als Steuerknüppel verbunden.' : 'Wartet auf ein iPhone in der Nähe …';
 }
 $('bLos').onclick = () => los(null);
 $('bGanz').onclick = () => los('ganz');
@@ -409,12 +422,16 @@ $('bHandy').onclick = () => {
   empfang.start();
   const adr = handyAdresse(empfang.code, frage.has('lokal'));
   $('handyCode').textContent = empfang.code; $('handyAdr').textContent = adr; $('handy').classList.add('an');
-  // QR-Code malen (Bibliothek aus dem Internet). Klappt das nicht, bleibt die Adresse zum Abtippen.
-  const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+  // QR-Code malen (Bibliothek aus dem Internet, in der App vom Gerät). Klappt das nicht, bleibt die Adresse zum Abtippen.
+  const s = document.createElement('script'); s.src = bibliothek('qrcode.js', 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js');
   s.onload = () => { try { const q = window.qrcode(0, 'M'); q.addData(adr); q.make(); $('handyQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2 }); } catch (e) { /* dann ohne Bild */ } };
   document.head.appendChild(s);
   maleMenue();
 };
+// App: Dieses Gerät wird der Steuerknüppel für ein iPad in der Nähe. Es merkt sich das und startet beim nächsten Mal gleich so.
+// Pause beenden geht auch mit einem Tipp – auf dem iPad gibt es keine Taste P
+$('pause').onclick = () => eingabe.druecke('pause');
+$('bNahKnueppel').onclick = () => { merkeRolle('knueppel'); location.href = 'steuer.html?nah'; };
 $('tasten').innerHTML = TASTEN_HILFE.map(([t, was]) => `<div><b>${t}</b><span>${was}</span></div>`).join('');
 
 // Blick drehen: auf dem freien Bild ziehen (Maus oder ein Finger), Mausrad = näher oder weiter weg, Doppel-Tipp = wieder geradeaus
@@ -445,6 +462,7 @@ document.body.classList.toggle('mit-touch', !!touch);
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
 window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get reise() { return reise;
   }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
+if (inApp) empfang.nahStarten();      // in der App wartet das Spiel von Anfang an auf ein iPhone in der Nähe
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
 else if (frage.has('ganz')) { if (MODI[frage.get('ganz')]) E.liste = frage.get('ganz'); los('ganz'); }

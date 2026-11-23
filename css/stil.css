@@ -17,6 +17,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0e1318; col
 button { font: inherit; color: #e9eef2; background: #24313f; border: 2px solid #33475a; border-radius: 10px; padding: 10px 14px; font-size: 16px; cursor: pointer; }
 button.an { background: #1f5fae; border-color: #46dcff; }
 #bLos { display: block; width: 100%; margin: 22px 0 14px; padding: 16px; font-size: 22px; font-weight: 700; background: #2a8a4a; border-color: #5fd07a; }
+#nah { display: none; margin-top: 12px; background: #0f161d; border-radius: 12px; padding: 12px; } #nah.an { display: block; } #nah p { margin: 4px 0; }
 #handy { display: none; gap: 16px; margin-top: 12px; background: #0f161d; border-radius: 12px; padding: 12px; align-items: center; }
 #handy.an { display: flex; } #handyQr svg { background: #fff; border-radius: 8px; display: block; } #handyAdr { word-break: break-all; color: #46dcff; user-select: text; -webkit-user-select: text; } #handy p { margin: 4px 0; }
 details { margin-top: 10px; color: #cfe0ec; } summary { cursor: pointer; padding: 6px 0; }
