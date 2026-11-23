@@ -41,7 +41,11 @@ export function mitHilfe(e, f, stufe, dt) {
     // Das Seitenruder sitzt hoch am Heck und rollt das Flugzeug deshalb ein wenig mit. Weil die Hilfe das Seitenruder
     // dauernd hält (gegen den Propeller), gleicht sie dieses Rollen mit etwas Querruder aus – sonst kippt das Flugzeug langsam weg.
     const T = f.T;
-    a.quer = clamp(a.quer + T.clSeite * a.seite * T.ruderMax.seite / (T.clQuer * T.ruderMax.quer), -1, 1);
+    // Und noch etwas gleicht sie aus: Dreht das Flugzeug in einer Kurve, ist der äußere Flügel schneller und hebt sich weiter.
+    // Ohne Hilfe bremst das Schieben dieses Aufschaukeln – das Schieben nimmt die Hilfe aber gerade weg.
+    const gierRoll = T.clGier * (-f.w[1]) * T.spann / (2 * Math.max(15, f.tas || 15));
+    a.quer = clamp(a.quer + (T.clSeite * a.seite * T.ruderMax.seite - clamp(gierRoll, -0.03, 0.03)) / (T.clQuer * T.ruderMax.quer), -1, 1);
+    if (Math.abs(e.quer) < 0.05) a.quer = clamp(a.quer - 0.08 * f.roll, -1, 1);       // losgelassen: ganz sanft zurück, so wie es das Schieben sonst täte
   }
   if (stufe === 'leicht' && !f.amBoden) {
     // Trimmung wandert langsam dem Knüppel nach: Wer die Nase lange irgendwo hinhält, muss bald nicht mehr drücken oder ziehen.

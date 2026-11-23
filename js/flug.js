@@ -56,7 +56,8 @@ export class Flug {
     if (!f.amBoden && f.hoeheGrund > 30) this.gelandet = false;
     if (this.warnZeit <= 0 && !f.bruch) {
       const v = f.T.v;
-      if (f.abriss > 0.3 && !f.amBoden) { this.sag('Strömungsabriss! Nase runter und Gas geben.', 'schlimm'); this.warnZeit = 5; }
+      if (f.trudelt > 0.5 && !f.amBoden) { this.sag('Trudeln! Gas raus, Querruder neutral, Seitenruder gegen die Drehung, Knüppel nach vorn.', 'schlimm'); this.warnZeit = 5; }
+      else if (f.abriss > 0.3 && !f.amBoden) { this.sag('Strömungsabriss! Nase runter und Gas geben.', 'schlimm'); this.warnZeit = 5; }
       else if (f.klappen > 0.05 && f.ias > (v.klappenMax + 5) * KN) { this.sag(`Zu schnell für die Klappen (höchstens ${v.klappenMax} kn).`, 'warn'); this.warnZeit = 8; }
       else if (f.ias > v.nie * KN) { this.sag('Viel zu schnell! Gas raus und Nase sanft hoch.', 'schlimm'); this.warnZeit = 5; }
       else if (!f.amBoden && f.hoeheGrund < 150 && f.steig < -5.5) { this.sag('Sinkrate! Du sinkst zu schnell.', 'warn'); this.warnZeit = 4; }

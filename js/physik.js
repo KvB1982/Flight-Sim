@@ -52,7 +52,7 @@ export function neuesFlugzeug(art = 'lerche', opt = {}) {
     gas: 0, motorAn: true, klappen: 0, klappenStufe: 0, trimm: 0,
     ruder: { hoehe: 0, quer: 0, seite: 0 }, bremse: 0,
     t: 0, luftZeit: 0, bodenZeit: 0, amBoden: false, rad: [0, 0, 0], radQuer: [0, 0, 0], radLang: [0, 0, 0], bruch: null,
-    alphaTempo: 0, lastRuhig: 1, zuSchnell: 0, heckAuf: false,
+    alphaTempo: 0, trudelt: 0, trudelRichtung: 0, lastRuhig: 1, zuSchnell: 0, heckAuf: false,
     ereignisse: [],                                                 // was passiert ist (Aufsetzen, harte Landung …), liest flug.js
     // Anzeigen, nach jedem Schritt neu gerechnet
     ias: 0, tas: 0, alpha: 0, schiebe: 0, abriss: 0, steig: 0, last: 1, hoeheGrund: 0, drehzahl: T.leerlauf, schub: 0,
@@ -70,7 +70,7 @@ export function setze(f, o) {
   f.v = [-Math.sin(k) * Math.cos(bahn) * tempo, Math.sin(bahn) * tempo, Math.cos(k) * Math.cos(bahn) * tempo];
   f.p = [o.x ?? 0, o.hoehe !== undefined ? o.hoehe : boden - f.T.raeder[1].ort[1] - 0.07, o.z ?? 0];
   f.w = [0, 0, 0]; f.bruch = null; f.ereignisse.length = 0;
-  f.radQuer = [0, 0, 0]; f.radLang = [0, 0, 0]; f.alphaTempo = 0; f.lastRuhig = 1; f.zuSchnell = 0; f.heckAuf = false; f.alpha = 0;
+  f.radQuer = [0, 0, 0]; f.radLang = [0, 0, 0]; f.alphaTempo = 0; f.trudelt = 0; f.trudelRichtung = 0; f.lastRuhig = 1; f.zuSchnell = 0; f.heckAuf = false; f.alpha = 0;
   f.amBoden = o.hoehe === undefined; f.luftZeit = f.amBoden ? 0 : 5; f.bodenZeit = f.amBoden ? 5 : 0;
   f.gas = o.gas ?? 0; f.trimm = o.trimm ?? 0; f.klappenStufe = o.klappen ?? 0; f.klappen = f.T.klappen[f.klappenStufe] / 30;
   f.ias = f.tas = tempo;
@@ -163,6 +163,35 @@ export function schritt(f, e, dt, welt) {
   const propGier = -schub * T.propDreh * clamp(1 - vVor / 60, 0, 1);    // Propeller zieht die Nase nach links
   // Nicken um die Querachse [0], Gieren um die Hochachse [1], Rollen um die Längsachse [2]
   const moment = [-stau * S * T.tiefe * cm, -(stau * S * T.spann * cn + propGier), stau * S * T.spann * cl];
+  // ---- Trudeln. Reißt die Strömung ab, während der Pilot den Knüppel ganz gezogen hält und das Flugzeug giert (Seitenruder,
+  // Schieben), sackt der eine Flügel tiefer in den Abriss als der andere: Er trägt weniger und bremst mehr, das Flugzeug dreht
+  // sich von allein immer weiter (Autorotation). Das genau zu rechnen ist schwer – wir lassen es deshalb auf ein Trudeln
+  // zulaufen, wie es Lehrbücher für so ein Flugzeug beschreiben: Nase gut 50° unten, etwa eine Umdrehung in 2,5 Sekunden,
+  // um die 60 Knoten. Heraus kommt man wie in echt: Gas raus, Querruder neutral, Seitenruder gegen die Drehung, Knüppel nach vorn.
+  {
+    const rich = f.trudelRichtung || Math.sign(r) || 1, gegen = f.ruder.seite * rich < -0.5, gezogen = f.ruder.hoehe > 0.6;
+    if (!f.amBoden && (weg > 0.4 || f.trudelt > 0.3) && gezogen && !gegen && Math.abs(r) > 0.3 && T.trudel > 0) {
+      if (!f.trudelt) f.trudelRichtung = Math.sign(r);
+      f.trudelt = Math.min(1, f.trudelt + 1.2 * dt);
+    } else if (f.trudelt > 0) {
+      const raus = (gegen ? 0.7 : 0) + (f.ruder.hoehe < 0.3 ? 0.5 : 0) + (gezogen ? 0 : 0.1) + (weg < 0.3 && f.trudelt < 0.3 ? 0.5 : 0);
+      f.trudelt = Math.max(0, f.trudelt - raus * dt);
+    }
+    if (!f.trudelt) f.trudelRichtung = 0;
+    const k = f.trudelt * T.trudel;
+    if (k > 0) {
+      const I = T.traeg, ri = f.trudelRichtung;
+      // Ziel: Rollen und Gieren in die Drehrichtung, Anstellwinkel 40°
+      const nickSoll = -I[0] * (6 * (0.7 - alpha) - 4 * qq);         // + = Nase runter (Achse [0])
+      const gierSoll = -I[1] * 4 * (ri * 1.4 - r);
+      const rollSoll = I[2] * 4 * (ri * 2.4 - p);
+      // Auch die Kreiselkräfte (siehe unten) rechnet das Ziel schon mit ein, sonst wackelt die Nase auf und ab.
+      const kr = kreuz(f.w, [I[0] * f.w[0], I[1] * f.w[1], I[2] * f.w[2]]);
+      moment[0] = (1 - k) * moment[0] + k * (nickSoll + kr[0]);
+      moment[1] = (1 - k) * moment[1] + k * (gierSoll + kr[1]);
+      moment[2] = (1 - k) * moment[2] + k * (rollSoll + kr[2]);
+    }
+  }
 
   // ---- Räder: Federn tragen das Flugzeug, Reibung hält es in der Spur, Bremsen und Rollen bremsen
   const kraftWelt = drehe(q, kraft);
@@ -179,10 +208,10 @@ export function schritt(f, e, dt, welt) {
     beruehrt++;
     const vr = kreuz(f.w, rad.ort), vw = drehe(q, vr), vk = [f.v[0] + vw[0], f.v[1] + vw[1], f.v[2] + vw[2]];   // Tempo des Rads über den Boden
     const N = clamp(rad.feder * tief * (1 + 4 * Math.max(0, tief - 0.25)) - rad.daempf * vk[1], 0, 9 * m * G);
-    // Das Bugrad lenkt mit dem Seitenruder; je schneller, desto weniger
+    // Das Bugrad lenkt mit dem Seitenruder: im Schritttempo bis 23°, schneller noch 10° (so ist es beim Vorbild über die Pedale verbunden)
     let rv = fv, rl = fl;
     if (rad.lenkt) {
-      const w = -f.ruder.seite * (0.4 - 0.33 * sanft(tempoBoden, 3, 20)), c = Math.cos(w), s = Math.sin(w);
+      const w = -f.ruder.seite * (0.4 - 0.23 * sanft(tempoBoden, 3, 20)), c = Math.cos(w), s = Math.sin(w);
       rv = [fv[0] * c + fl[0] * s, 0, fv[2] * c + fl[2] * s]; rl = [rv[2], 0, -rv[0]];
     }
     const vLang = mal(vk, rv), vQuer = mal(vk, rl);
@@ -190,7 +219,7 @@ export function schritt(f, e, dt, welt) {
     // Rollt das Rad, richten sich die Borsten nach reifenLang Metern neu aus – deshalb zählt beim Fahren der Winkel zur
     // Fahrtrichtung (Schräglauf), und im Stand hält der Reifen wie festgeklebt, bis die Kraft zu groß wird und er rutscht.
     const hart = T.reifenHart * N, ruhe = T.reifenDaempf * N / (1 + vLang * vLang);
-    const haltQ = T.reifenHalt * N, haltL = N * (0.02 + (rad.bremst ? 0.5 * f.bremse : 0));
+    const haltQ = T.reifenHalt * N, haltL = N * (0.02 + (rad.bremst ? 0.65 * f.bremse : 0));
     let zq = f.radQuer[i] + (vQuer - Math.abs(vLang) * f.radQuer[i] / T.reifenLang) * dt, zl = f.radLang[i] + vLang * dt;
     if (hart > 1) { zq = clamp(zq, -haltQ / hart, haltQ / hart); zl = clamp(zl, -haltL / hart, haltL / hart); } else zq = zl = 0;
     f.radQuer[i] = zq; f.radLang[i] = zl;
@@ -251,9 +280,9 @@ export function schritt(f, e, dt, welt) {
   f.lastRuhig += (f.last - f.lastRuhig) * Math.min(1, dt / 0.08);
   if (!f.amBoden) {
     if (f.lastRuhig > (f.klappen > 0.05 ? T.lastMaxKlappen : T.lastMax) || f.lastRuhig < T.lastMin) f.bruch = 'Überlast';
-    // Über der roten Marke fängt das Flugzeug an zu flattern: ein paar Sekunden hält es das aus, 10 % darüber gar nicht mehr
+    // Über der roten Marke fängt das Flugzeug an zu flattern: ein paar Sekunden hält es das aus, 15 % darüber gar nicht mehr
     f.zuSchnell = f.ias > T.v.nie * KN ? f.zuSchnell + dt : Math.max(0, f.zuSchnell - dt);
-    if (f.zuSchnell > 4 || f.ias > T.v.nie * KN * 1.1) f.bruch = 'Tempo';
+    if (f.zuSchnell > 8 || f.ias > T.v.nie * KN * 1.15) f.bruch = 'Tempo';
   }
   f.kugel = clamp(kraft[0] / (m * G) * 4, -1, 1);            // die Kugel im Wendezeiger: + = rechts von der Mitte
   anzeigen(f, welt);

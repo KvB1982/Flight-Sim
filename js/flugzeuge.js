@@ -32,7 +32,7 @@ export const FLUGZEUGE = {
     ruderMax: { hoehe: 0.44, quer: 0.30, seite: 0.282 },   // größter Ausschlag der Ruder (Seitenruder 16° wie im Typenblatt des Vorbilds)
     // Trimmung: f.trimm −1 … +1 verstellt das Höhenruder um trimmMitte ± trimmWeg. Ganz kopflastig (−1) fliegt die Lerche
     // losgelassen etwa 135 kn, ganz schwanzlastig (+1) etwa 55 kn – langsamer als bis kurz vor den Abriss lässt sie sich nicht trimmen.
-    trimmMitte: 0.071, trimmWeg: 0.073,
+    trimmMitte: 0.0739, trimmWeg: 0.0701,
     // Bei viel Fahrt drückt die Luft so fest aufs Höhenruder, dass die Hand es nicht mehr ganz ausschlagen kann:
     // über ruderWeichAb (m/s angezeigte Fahrt) schrumpft der Ausschlag mit dem Quadrat des Tempos
     ruderWeichAb: 36,
@@ -59,6 +59,7 @@ export const FLUGZEUGE = {
     // Stellen, die den Boden nicht berühren dürfen
     huelle: [['Flügel', 5.5, 0.75, 0], ['Flügel', -5.5, 0.75, 0], ['Propeller', 0, -0.75, 1.95], ['Rumpf', 0, -0.6, 0]],
     // ---- Festigkeit: So viel hält das Flugzeug aus (das 1,5-Fache dessen, was das Handbuch des Vorbilds erlaubt: +3,8 g, −1,52 g, mit Klappen +3,0 g)
+    trudel: 1,            // wie stark die abgerissenen Flügel das Flugzeug ins Trudeln drehen (0 = gar nicht)
     lastMax: 5.7, lastMin: -2.3, lastMaxKlappen: 4.5,
     // ---- Zahlen für den Piloten (in Knoten), stehen auch auf dem Fahrtmesser
     v: { abriss0: 37, abriss: 48, abheben: 55, steigen: 74, gleiten: 68, anflug: 65, klappenMax: 85, normalMax: 129, nie: 163 },
