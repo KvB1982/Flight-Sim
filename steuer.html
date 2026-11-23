@@ -14,6 +14,8 @@
   #start input { font: inherit; font-size: 28px; width: 5.2em; text-align: center; letter-spacing: .2em; text-transform: uppercase; padding: 8px; border-radius: 10px; border: 2px solid #3b4a59; background: #1a232d; color: #fff; -webkit-user-select: text; user-select: text; touch-action: auto; }
   button { font: inherit; color: #fff; background: #26323f; border: 2px solid #3b4a59; border-radius: 12px; padding: 0; }
   button.unten, button:active { background: #2f7fd1; border-color: #6db3f5; }
+  #bSpielStart { padding: 8px 16px; font-size: 15px; color: #a9b6c2; }
+  [hidden] { display: none !important; }
   #bLos { font-size: 22px; padding: 14px 34px; background: #2f7fd1; border-color: #6db3f5; }
   #hochkant { display: none; color: #ffc861; }
   @media (orientation: portrait) { #hochkant { display: block; } }
@@ -41,12 +43,14 @@
 </head>
 <body>
 <div id="start">
-  <h1>✈️ Steuerknüppel</h1>
+  <h1 id="titel">✈️ Steuerknüppel</h1>
   <p>Halte das Handy quer wie ein Lenkrad. Drehen = Querruder, zu dir kippen = ziehen (Nase hoch), von dir weg = drücken.</p>
   <p id="hochkant">Bitte das Handy quer drehen.</p>
   <input id="code" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+  <p id="nahText" hidden>Dieses iPhone sucht ein iPad in der Nähe, auf dem der Flugsimulator offen ist. WLAN oder Bluetooth muss auf beiden Geräten an sein, Internet ist nicht nötig.</p>
   <button id="bLos">Los geht's</button>
   <p id="startStand"></p>
+  <button id="bSpielStart" hidden>✕ Doch selbst fliegen</button>
 </div>
 <div id="brett">
   <div id="kopf">
@@ -55,6 +59,7 @@
     <button id="bStufe">🎚 3</button>
     <button id="bKamera">🎥</button>
     <button id="bPause">⏸</button>
+    <button id="bSpiel" hidden>✕ Spiel</button>
   </div>
   <div class="spalte">
     <button id="bKlEin">Klappen ▲ ein</button>

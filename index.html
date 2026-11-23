@@ -6,8 +6,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0e1318">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <title>Flugsimulator</title>
 <link rel="stylesheet" href="css/stil.css">
+<script>
+  // Nur in der App: War dieses Gerät beim letzten Mal der Steuerknüppel für ein iPad, wird es das gleich wieder
+  // (zurück geht es dort mit „✕ Spiel“). Im Browser passiert hier nichts.
+  try {
+    var C = window.Capacitor;
+    if (C && C.isNativePlatform && C.isNativePlatform() && localStorage.getItem('flugsim.rolle.v1') === 'knueppel') location.replace('steuer.html?nah');
+  } catch (e) { /* dann zeigt dieses Gerät eben das Spiel */ }
+</script>
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -55,11 +64,14 @@
     <button id="plLos">Losfliegen</button><button id="plZurueck">Zurück zum Menü</button>
   </div>
 </div>
-<div id="pause">Pause<br><small>P = weiter · N = Menü</small></div>
+<div id="pause">Pause<br><small>Tippen oder P = weiter · N = Menü</small></div>
 <div id="menue">
   <div class="karte">
     <h1>Flugsimulator</h1>
     <p class="unter">Fliegen lernen mit der Lerche 172 am Flugplatz Lerchenfeld</p>
+    <div id="nah"><p><b>iPhone als Steuerknüppel – ohne Internet</b></p><p id="nahStand"></p>
+      <p class="hinweis">Das iPad zeigt den Flug, das iPhone ist der Knüppel. Auf dem iPhone diese App öffnen und hier tippen:</p>
+      <button id="bNahKnueppel">📱 Dieses Gerät ist der Steuerknüppel</button></div>
     <h2>Flugschule mit Fluglehrerin Jule</h2>
     <div class="lektionen" id="wSchule"></div>
     <p class="hinweis">Acht Lektionen vom Rollen bis zum Alleinflug. Jule sagt dir, was zu tun ist. Die nächste Lektion geht auf, wenn du die davor geschafft hast. <button id="bAlles" class="klein"></button></p>
