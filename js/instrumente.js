@@ -6,6 +6,9 @@ import { KN, FT } from './flugzeuge.js';
 
 const TAU = Math.PI * 2, GRAD = Math.PI / 180;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const grad3 = k => String(Math.round(((k / GRAD) % 360 + 360) % 360) || 360).padStart(3, '0');
+// Der Kurs, den der Kurskreisel zeigt (falsch, solange er beim ganzen Flug nicht nach dem Kompass gestellt ist)
+const kursZeigt = f => f.kurs + (f.kursFehler || 0);
 export const BRETT_ANTEIL = 0.4;              // so viel der Bildhöhe nimmt das Instrumentenbrett ein
 
 // ---------------------------------------------------------------- Bausteine
@@ -60,7 +63,7 @@ function horizont(g, x, y, r, f) {
 // Höhenmesser: langer Zeiger = Hunderter (eine Runde = 1000 ft), kurzer = Tausender. Dazu die Zahl im Fenster.
 function hoehe(g, x, y, r, f) {
   rund(g, x, y, r, 'ft');
-  const ft = (f.p[1] + (f.nn || 0)) / FT;      // f.nn: beim Überlandflug zeigt der Höhenmesser die Höhe über dem Meer
+  const ft = (f.p[1] + (f.nn || 0) + (f.hoeheFehler || 0)) / FT;      // f.nn: beim Überlandflug zeigt der Höhenmesser die Höhe über dem Meer
   striche(g, r, -Math.PI / 2, 1.5 * Math.PI, 10, 0.13); striche(g, r, -Math.PI / 2, 1.5 * Math.PI, 50, 0.06, 0.012);
   for (let i = 0; i < 10; i++) zahl(g, r, -Math.PI / 2 + i * TAU / 10, String(i), 0.66, 0.19);
   g.fillStyle = '#1d2024'; g.fillRect(-r * 0.34, -r * 0.4, r * 0.68, r * 0.24); g.fillStyle = '#e8f0ff'; g.font = `bold ${r * 0.19}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -85,9 +88,10 @@ function wende(g, x, y, r, f) {
 // Kurskreisel: Die Scheibe dreht sich, oben steht der Kurs. N = Norden (360), O = Osten (90), S = Süden, W = Westen.
 function kurs(g, x, y, r, f) {
   rund(g, x, y, r);
-  g.save(); g.rotate(-f.kurs);
+  g.save(); g.rotate(-kursZeigt(f));
   striche(g, r, 0, TAU, 36, 0.1, 0.02); striche(g, r, 0, TAU, 72, 0.05, 0.012);
-  for (let d = 0; d < 360; d += 30) { g.save(); g.rotate(d * GRAD); g.fillStyle = d % 90 ? '#fff' : '#ffd24a'; g.font = `bold ${r * (d % 90 ? 0.16 : 0.2)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d % 90 ? String(d / 10) : 'NOSW'[d / 90], 0, -r * 0.68); g.restore(); }
+  for (let d = 0; d < 360; d += 30) { g.save(); g.rotate(d * GRAD); g.fillStyle = d % 90 ? '#fff' : '#ffd24a'; g.font = `bold ${r * (d % 90 ? 0.16 : 0.2)}px sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d % 90 ? String(d / 10) : 'NOSW'[d / 90], 0, -r * 0.68); g.restore(); }
   g.restore();
   g.strokeStyle = '#ffb020'; g.lineWidth = r * 0.04; g.beginPath(); g.moveTo(0, -r * 0.35); g.lineTo(0, r * 0.3); g.moveTo(-r * 0.25, -r * 0.05); g.lineTo(r * 0.25, -r * 0.05); g.moveTo(-r * 0.1, r * 0.22); g.lineTo(r * 0.1, r * 0.22); g.stroke();
   g.fillStyle = '#ffb020'; g.beginPath(); g.moveTo(0, -r * 0.96); g.lineTo(-r * 0.06, -r * 1.07); g.lineTo(r * 0.06, -r * 1.07); g.closePath(); g.fill(); g.restore();
@@ -112,9 +116,12 @@ function drehzahl(g, x, y, r, f) {
 // kleine Balken: Klappen, Trimmung, Tank
 function balken(g, x, y, w, h, f) {
   g.save(); g.translate(x, y); g.font = `${h * 0.105}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-  const feld = (i, name, male) => { const bx = (i - 1) * w * 0.34; g.fillStyle = '#0a0b0c'; g.beginPath(); g.roundRect(bx - w * 0.14, -h * 0.42, w * 0.28, h * 0.7, 6); g.fill(); g.strokeStyle = '#3a3e44'; g.lineWidth = 2; g.stroke(); g.fillStyle = '#8f98a3'; g.fillText(name, bx, h * 0.4); g.save(); g.translate(bx, -h * 0.07); male(w * 0.2, h * 0.56); g.restore(); };
-  feld(0, 'KLAPPEN', (bw, bh) => { for (let i = 0; i < 4; i++) { g.fillStyle = i === f.klappenStufe ? '#fff' : '#555'; g.fillText(String(f.T.klappen[i]) + '°', -bw * 0.25, -bh * 0.4 + i * bh * 0.27); } g.fillStyle = '#ffb020'; g.fillRect(bw * 0.2, -bh * 0.47 + f.klappen * bh * 0.8, bw * 0.35, bh * 0.1); });
-  feld(1, 'TRIMMUNG', (bw, bh) => { g.fillStyle = '#555'; g.fillRect(-2, -bh * 0.45, 4, bh * 0.9); g.fillStyle = '#2fbf4f'; g.fillRect(-bw * 0.3, 0.35 * bh * 0.42 - 3, bw * 0.6, 6); /* grüne Marke = Trimmung für den Start (−0,35) */ g.fillStyle = '#fff'; g.fillRect(-bw * 0.4, -f.trimm * bh * 0.42 - 4, bw * 0.8, 8); g.fillStyle = '#8f98a3'; g.font = `${bh * 0.16}px sans-serif`; g.fillText('hoch', bw * 0.0, -bh * 0.62 + bh * 1.0 * 0); });
+  const feld = (i, name, male) => { const bx = (i - 1) * w * 0.34; g.fillStyle = '#0a0b0c'; g.beginPath(); g.roundRect(bx - w * 0.14, -h * 0.42, w * 0.28, h * 0.7, 6); g.fill();
+    g.strokeStyle = '#3a3e44'; g.lineWidth = 2; g.stroke(); g.fillStyle = '#8f98a3'; g.fillText(name, bx, h * 0.4); g.save(); g.translate(bx, -h * 0.07); male(w * 0.2, h * 0.56); g.restore(); };
+  feld(0, 'KLAPPEN', (bw, bh) => { for (let i = 0; i < 4; i++) { g.fillStyle = i === f.klappenStufe ? '#fff' : '#555'; g.fillText(String(f.T.klappen[i]) + '°', -bw * 0.25, -bh * 0.4 + i * bh * 0.27); }
+    g.fillStyle = '#ffb020'; g.fillRect(bw * 0.2, -bh * 0.47 + f.klappen * bh * 0.8, bw * 0.35, bh * 0.1); });
+  feld(1, 'TRIMMUNG', (bw, bh) => { g.fillStyle = '#555'; g.fillRect(-2, -bh * 0.45, 4, bh * 0.9); g.fillStyle = '#2fbf4f'; g.fillRect(-bw * 0.3, 0.35 * bh * 0.42 - 3, bw * 0.6, 6); /* grüne Marke = Trimmung für den Start (−0,35) */
+    g.fillStyle = '#fff'; g.fillRect(-bw * 0.4, -f.trimm * bh * 0.42 - 4, bw * 0.8, 8); g.fillStyle = '#8f98a3'; g.font = `${bh * 0.16}px sans-serif`; g.fillText('hoch', bw * 0.0, -bh * 0.62 + bh * 1.0 * 0); });
   feld(2, 'TANK', (bw, bh) => { const voll = f.sprit / f.T.tank; g.fillStyle = '#333'; g.fillRect(-bw * 0.25, -bh * 0.45, bw * 0.5, bh * 0.9); g.fillStyle = voll < 0.15 ? '#e62e2e' : '#3aa0e0'; g.fillRect(-bw * 0.25, bh * 0.45 - voll * bh * 0.9, bw * 0.5, voll * bh * 0.9); });
   g.restore();
 }
@@ -160,7 +167,7 @@ export function maleHud(g, W, H, f) {
   g.fillStyle = f.abriss > 0.3 ? '#ff5a4a' : '#fff'; g.font = `bold ${24 * s}px sans-serif`; g.textAlign = 'right'; g.fillText(String(Math.round(kn)), bx + 62 * s, by + 1);
   g.fillStyle = '#9fb0bd'; g.font = `${12 * s}px sans-serif`; g.textAlign = 'left'; g.fillText('kn', bx + 4 * s, by - bh / 2 - 10 * s);
   // rechts: Höhe und Steigen/Sinken
-  const rx = W - 110 * s, ft = (f.p[1] + (f.nn || 0)) / FT, fpm = steigZeigt(f) / FT * 60;
+  const rx = W - 110 * s, ft = (f.p[1] + (f.nn || 0) + (f.hoeheFehler || 0)) / FT, fpm = steigZeigt(f) / FT * 60;
   kasten(rx, by - bh / 2, 92 * s, bh);
   g.save(); g.beginPath(); g.rect(rx, by - bh / 2, 92 * s, bh); g.clip();
   g.fillStyle = '#cfd8e0'; g.font = `${14 * s}px sans-serif`; g.textAlign = 'left';
@@ -174,10 +181,11 @@ export function maleHud(g, W, H, f) {
   g.fillStyle = 'rgba(10,14,18,0.55)'; g.fillRect(W - 14 * s, by - bh / 2, 8 * s, bh); g.fillStyle = fpm < -700 ? '#ff5a4a' : '#5fd07a'; g.fillRect(W - 14 * s, Math.min(by, by - vy), 8 * s, Math.abs(vy)); g.fillStyle = '#fff'; g.fillRect(W - 16 * s, by - 1, 12 * s, 2);
   g.fillStyle = '#fff'; g.font = `${15 * s}px sans-serif`; g.textAlign = 'right'; g.fillText((fpm > 0 ? '+' : '') + Math.round(fpm / 10) * 10 + ' ft/min', W - 20 * s, by + bh / 2 + 16 * s);
   // oben: Kurs
-  const kx = W / 2, ky = 26 * s, grad = f.kurs / GRAD;
+  const kx = W / 2, ky = 26 * s, grad = kursZeigt(f) / GRAD;
   kasten(kx - 150 * s, ky - 16 * s, 300 * s, 34 * s);
   g.save(); g.beginPath(); g.rect(kx - 150 * s, ky - 16 * s, 300 * s, 34 * s); g.clip(); g.textAlign = 'center'; g.font = `${13 * s}px sans-serif`;
-  for (let d = Math.floor(grad / 10) * 10 - 40; d <= grad + 40; d += 10) { const x = kx + (d - grad) * 4 * s, n = ((d % 360) + 360) % 360; g.fillStyle = '#cfd8e0'; g.fillRect(x - 1, ky + 8 * s, 2, 8 * s); g.fillStyle = n % 90 ? '#cfd8e0' : '#ffd24a'; g.fillText(n % 90 ? String(n / 10).padStart(2, '0') : 'NOSW'[n / 90], x, ky - 2 * s); }
+  for (let d = Math.floor(grad / 10) * 10 - 40; d <= grad + 40; d += 10) { const x = kx + (d - grad) * 4 * s, n = ((d % 360) + 360) % 360; g.fillStyle = '#cfd8e0';
+    g.fillRect(x - 1, ky + 8 * s, 2, 8 * s); g.fillStyle = n % 90 ? '#cfd8e0' : '#ffd24a'; g.fillText(n % 90 ? String(n / 10).padStart(2, '0') : 'NOSW'[n / 90], x, ky - 2 * s); }
   g.restore();
   g.fillStyle = '#ffb020'; g.beginPath(); g.moveTo(kx, ky + 20 * s); g.lineTo(kx - 6 * s, ky + 30 * s); g.lineTo(kx + 6 * s, ky + 30 * s); g.closePath(); g.fill();
   g.fillStyle = '#fff'; g.font = `bold ${16 * s}px sans-serif`; g.textAlign = 'center'; g.fillText(String(Math.round(((grad % 360) + 360) % 360) || 360).padStart(3, '0') + '°', kx, ky + 44 * s);
@@ -221,21 +229,69 @@ export function maleWind(g, W, H, f, w) {
 // ---------------------------------------------------------------- Navi-Anzeige beim Überlandflug (oben rechts)
 // n = { name, nm, min, kurs (Steuerkurs laut Plan, Grad als Text), peil (Richtung zum Punkt, Bogenmaß), ablage (Meter, + = rechts der Linie),
 //       raffer, feuer: { id, peil, dme } }
-// Die kleine Nadel zeigt, wohin es zum Wegpunkt geht (oben = geradeaus). Der Balken darunter: Wo liegt die geplante Linie?
-export function maleNavi(g, W, H, f, n, oben = 14) {
-  const s = Math.min(W, H) / 700, b = 208 * s, x = W - b - 14 * s, y = oben, h = (n.feuer ? 112 : 92) * s, r = 22 * s, cx = x + 30 * s, cy = y + 32 * s;
+// ---------------------------------------------------------------- Überlandflug: Navi-Kasten, Planzettel, Funkfeuer-Nadel
+// Alle drei sitzen oben rechts untereinander. oben = Abstand vom oberen Rand, rechts = Abstand vom rechten Rand
+// (beim ganzen Flug liegt dort die Checkliste). Jede Funktion gibt zurück, wo ihr Kasten unten aufhört.
+// Navi-Stufe „Leicht“. n = { name, nm, min, kurs (Text), peil, ablage (Meter, + = rechts von der Linie) }
+export function maleNavi(g, W, H, f, n, oben = 14, rechts = 14) {
+  const s = Math.min(W, H) / 700, b = 208 * s, x = W - b - rechts, y = oben, h = 92 * s, r = 22 * s, cx = x + 30 * s, cy = y + 32 * s;
   g.save(); g.textBaseline = 'middle'; g.textAlign = 'left';
   g.fillStyle = 'rgba(10,14,18,0.6)'; g.beginPath(); g.roundRect(x, y, b, h, 8 * s); g.fill();
   g.strokeStyle = '#8f98a3'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke();
-  g.save(); g.translate(cx, cy); g.rotate(n.peil - f.kurs); g.fillStyle = '#ff5ab4'; g.beginPath(); g.moveTo(0, -r - 3 * s); g.lineTo(-7 * s, -r * 0.2); g.lineTo(0, -r * 0.45); g.lineTo(7 * s, -r * 0.2); g.closePath(); g.fill(); g.restore();
+  g.save(); g.translate(cx, cy); g.rotate(n.peil - f.kurs); g.fillStyle = '#ff5ab4';
+  g.beginPath(); g.moveTo(0, -r - 3 * s); g.lineTo(-7 * s, -r * 0.2); g.lineTo(0, -r * 0.45); g.lineTo(7 * s, -r * 0.2); g.closePath(); g.fill(); g.restore();
   g.fillStyle = '#ffd7ee'; g.font = `600 ${14 * s}px sans-serif`; g.fillText('→ ' + n.name, x + 62 * s, cy - 15 * s, b - 68 * s);
-  g.fillStyle = '#fff'; g.font = `${13.5 * s}px sans-serif`; g.fillText(`${n.nm < 10 ? n.nm.toFixed(1) : Math.round(n.nm)} NM` + (n.min != null ? ` · ${Math.max(1, Math.round(n.min))} min` : ''), x + 62 * s, cy + 2 * s);
+  g.fillStyle = '#fff'; g.font = `${13.5 * s}px sans-serif`;
+  g.fillText(`${n.nm < 10 ? n.nm.toFixed(1) : Math.round(n.nm)} NM` + (n.min != null ? ` · ${Math.max(1, Math.round(n.min))} min` : ''), x + 62 * s, cy + 2 * s);
   g.fillStyle = '#cfd8e0'; g.font = `${12.5 * s}px sans-serif`; g.fillText(`Kurs ${n.kurs}°`, x + 62 * s, cy + 19 * s);
   // Balken: Mitte = auf der Linie. Der Punkt zeigt die Linie: liegt er rechts, muss man nach rechts.
   const by = y + 76 * s, bw = b - 28 * s, ab = clamp(-n.ablage / 3000, -1, 1);
   g.fillStyle = '#39424c'; g.fillRect(x + 14 * s, by - 2 * s, bw, 4 * s); g.fillStyle = '#9fb0bd'; g.fillRect(x + 14 * s + bw / 2 - 1, by - 7 * s, 2, 14 * s);
   g.fillStyle = Math.abs(n.ablage) > 1852 ? '#ffc43c' : '#ff5ab4'; g.beginPath(); g.arc(x + 14 * s + bw / 2 + ab * bw / 2, by, 6 * s, 0, TAU); g.fill();
-  if (n.feuer) { g.fillStyle = '#9fc0ff'; g.font = `${12.5 * s}px sans-serif`; g.fillText(`Funkfeuer ${n.feuer.id}: ${n.feuer.peil}° · ${n.feuer.dme.toFixed(1)} NM`, x + 12 * s, y + 98 * s, b - 20 * s); }
-  if (n.raffer) { g.fillStyle = '#ffc43c'; g.font = `700 ${22 * s}px sans-serif`; g.textAlign = 'center'; g.fillText(`▶▶ Zeitraffer ×${n.raffer}`, W / 2, H * 0.3); }
   g.restore();
+  return y + h;
+}
+// Navi-Stufe „Selbst“: der Planzettel wie auf dem Kniebrett. z = { uhr: Sekunden seit dem Abheben oder null,
+// beine: [{ name, kurs (Text), min, an (Minute auf der Stoppuhr, zu der man dort sein sollte) }], hoehe (ft) }
+export function maleZettel(g, W, H, z, oben = 14, rechts = 14) {
+  const s = Math.min(W, H) / 700, b = 226 * s, zeile = 17 * s, h = (46 + z.beine.length * 17) * s, x = W - b - rechts, y = oben;
+  const uhr = z.uhr == null ? '0:00' : `${Math.floor(z.uhr / 60)}:${String(Math.floor(z.uhr % 60)).padStart(2, '0')}`;
+  g.save(); g.textBaseline = 'middle'; g.textAlign = 'left';
+  g.fillStyle = 'rgba(244,238,220,0.92)'; g.beginPath(); g.roundRect(x, y, b, h, 6 * s); g.fill();
+  g.fillStyle = '#1b232b'; g.font = `700 ${13 * s}px sans-serif`; g.fillText('Planzettel', x + 10 * s, y + 13 * s);
+  g.textAlign = 'right'; g.font = `700 ${15 * s}px monospace`; g.fillText('⏱ ' + uhr, x + b - 10 * s, y + 13 * s);
+  g.font = `${10.5 * s}px sans-serif`; g.fillStyle = '#5a6570'; g.textAlign = 'left'; g.fillText('nach', x + 10 * s, y + 30 * s);
+  g.textAlign = 'right'; g.fillText('Kurs', x + b - 92 * s, y + 30 * s); g.fillText('Dauer', x + b - 50 * s, y + 30 * s); g.fillText('an bei', x + b - 10 * s, y + 30 * s);
+  z.beine.forEach((bein, i) => {
+    const zy = y + 44 * s + i * zeile;
+    g.fillStyle = '#1b232b'; g.textAlign = 'left'; g.font = `600 ${12.5 * s}px sans-serif`; g.fillText(bein.name, x + 10 * s, zy, b - 150 * s);
+    g.textAlign = 'right'; g.font = `700 ${13 * s}px monospace`; g.fillText(bein.kurs + '°', x + b - 92 * s, zy);
+    g.font = `${12.5 * s}px monospace`; g.fillText(Math.round(bein.min) + ' min', x + b - 50 * s, zy); g.fillText(`${Math.round(bein.an)}:00`, x + b - 10 * s, zy);
+  });
+  g.restore();
+  return y + h;
+}
+// Die Funkfeuer-Nadel (wie ein VOR-Anzeiger mit Entfernungsmesser). a = Ergebnis von feuerAnzeige() und kurz = Name des Senders.
+// Die Nadel zeigt, wo die gewählte Kurslinie liegt: Steht sie rechts, fliegt man nach rechts, bis sie in der Mitte ist.
+// Das Dreieck zeigt nach oben, wenn der gewählte Kurs zum Sender hinführt („ZU“), nach unten, wenn er wegführt („AB“).
+export function maleFeuer(g, W, H, a, oben = 14, rechts = 14, tasten = true) {
+  const s = Math.min(W, H) / 700, b = 208 * s, h = (tasten ? 74 : 62) * s, x = W - b - rechts, y = oben, r = 24 * s, cx = x + 32 * s, cy = y + 31 * s;
+  g.save(); g.textBaseline = 'middle'; g.textAlign = 'left';
+  g.fillStyle = 'rgba(10,14,18,0.6)'; g.beginPath(); g.roundRect(x, y, b, h, 8 * s); g.fill();
+  g.fillStyle = '#0a0b0c'; g.strokeStyle = '#8f98a3'; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill(); g.stroke();
+  g.fillStyle = '#8f98a3'; for (let i = -2; i <= 2; i++) { g.beginPath(); g.arc(cx + i * r * 0.36, cy, (i ? 1.6 : 2.6) * s, 0, TAU); g.fill(); }
+  const nx = cx + a.nadel * r * 0.72, hy = Math.sqrt(Math.max(0, r * r * 0.8 - (nx - cx) * (nx - cx)));
+  g.strokeStyle = Math.abs(a.nadel) >= 1 ? '#ffc43c' : '#9fc0ff'; g.lineWidth = 2.6 * s; g.beginPath(); g.moveTo(nx, cy - hy); g.lineTo(nx, cy + hy); g.stroke();
+  const d = a.zu ? -1 : 1; g.fillStyle = '#fff';
+  g.beginPath(); g.moveTo(cx + r * 0.55, cy + d * r * 0.62); g.lineTo(cx + r * 0.38, cy + d * r * 0.36); g.lineTo(cx + r * 0.72, cy + d * r * 0.36); g.closePath(); g.fill();
+  g.fillStyle = '#9fc0ff'; g.font = `600 ${13.5 * s}px sans-serif`; g.fillText(`${a.id} ${a.kurz}`, x + 66 * s, cy - 16 * s, b - 72 * s);
+  g.fillStyle = '#fff'; g.font = `${13 * s}px sans-serif`; g.fillText(`Kurs ${grad3(a.kurs)}° ${a.zu ? 'ZU' : 'AB'}`, x + 66 * s, cy + 1 * s);
+  g.fillStyle = '#cfd8e0'; g.font = `${12 * s}px sans-serif`; g.fillText(`${a.dme.toFixed(1)} NM · Peilung ${grad3(a.peil)}°`, x + 66 * s, cy + 17 * s, b - 72 * s);
+  if (tasten) { g.fillStyle = '#8f98a3'; g.font = `${10.5 * s}px sans-serif`; g.fillText('4 Sender · 5 / 6 Kurs − / + · 7 direkt hin', x + 10 * s, y + 65 * s, b - 16 * s); }
+  g.restore();
+  return y + h;
+}
+export function maleRaffer(g, W, H, mal) {
+  const s = Math.min(W, H) / 700;
+  g.save(); g.fillStyle = '#ffc43c'; g.font = `700 ${22 * s}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(`▶▶ Zeitraffer ×${mal}`, W / 2, H * 0.3); g.restore();
 }

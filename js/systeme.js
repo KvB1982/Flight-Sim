@@ -19,6 +19,8 @@ export const SCHALTER = [
   { id: 'warn', name: 'Warnlicht', an: 'an', aus: 'aus', grund: 'Das rote Blinklicht zeigt allen: Hier läuft gleich ein Propeller.' },
   { id: 'lande', name: 'Landelicht', an: 'an', aus: 'aus', grund: 'Damit sehen dich die anderen bei Start und Landung.' },
   { id: 'vorwaerm', name: 'Vergaservorwärmung', an: 'an', aus: 'aus', grund: 'Mit wenig Gas kann der Vergaser vereisen, dann verliert der Motor Kraft. Warme Luft taut ihn auf, kostet aber etwas Leistung.' },
+  { id: 'hmesser', name: 'Höhenmesser', an: 'eingestellt', aus: 'verstellt', grund: 'Der Luftdruck ist jeden Tag anders. Erst mit dem Druck vom Platz (QNH) zeigt der Höhenmesser die richtige Höhe.' },
+  { id: 'kreisel', name: 'Kurskreisel', an: 'abgeglichen', aus: 'verstellt', grund: 'Der Kurskreisel weiß nicht von allein, wo Norden ist. Man stellt ihn vor dem Start nach dem Kompass – sonst fliegt man in die falsche Richtung.' },
   { id: 'keile', name: 'Bremskeile', an: 'liegen vor', aus: 'weg', draussen: true, grund: 'Mit Keilen vor den Rädern rollt das Flugzeug nicht.' },
   { id: 'huelle', name: 'Staurohr-Hülle', an: 'drauf', aus: 'ab', draussen: true, grund: 'Mit Hülle zeigt der Fahrtmesser nichts an.' }
 ];
@@ -28,16 +30,21 @@ export const schalterVon = id => SCHALTER.find(s => s.id === id);
 export function neueSysteme(zustand = {}, zufall = Math.random) {
   return {
     klemme: true, gurte: false, park: true, hahn: false, gemisch: false, haupt: false, zuend: false, warn: false, lande: false, vorwaerm: false,
-    keile: true, huelle: true,
+    keile: true, huelle: true, hmesser: false, kreisel: false,
     deckel: zufall() > 0.3,                         // false = ein Tankdeckel ist lose (fällt nur beim Außencheck auf)
     oelWenig: zufall() < 0.2,                       // true = Ölstand zu niedrig, muss nachgefüllt werden
     batterie: zustand.batterieLeer ? 0 : 1,         // 0 … 1
     eis: 0,                                         // Vereisung im Vergaser 0 … 1
     laufZeit: 0, anlassZeit: 0, hahnZeit: 0, probeZeit: 0,
-    geprueft: { tank: false, oel: false, ruder: false, deckelR: false },     // was beim Rundgang angesehen wurde
+    geprueft: { tank: false, oel: false, ruder: false, deckelR: false, wasser: false },     // was beim Rundgang angesehen wurde
     ruderSah: [false, false, false, false], ruderFrei: false, motorProbe: false,
     drin: false,                                    // sitzt der Pilot im Flugzeug?
-    meldungen: []                                   // { text, art } – zeigt das Spiel an
+    meldungen: [],                                  // { text, art } – zeigt das Spiel an
+    // (neue Würfe immer hier hinten anhängen: Die Prüfwerkzeuge würfeln mit festem Zufall und sollen dasselbe Flugzeug bekommen)
+    wasser: zufall() < 0.2,                         // true = über Nacht hat sich Wasser im Tank gesammelt (zeigt nur die Wasserprobe)
+    hmFehler: (zufall() < 0.5 ? -1 : 1) * (45 + 25 * zufall()),          // so viele Meter zeigt der Höhenmesser falsch, solange er nicht eingestellt ist
+    krFehler: (zufall() < 0.5 ? -1 : 1) * (0.3 + 0.25 * zufall()),       // so weit (Bogenmaß, 17° bis 32°) steht der Kurskreisel falsch, solange er nicht abgeglichen ist
+    vollZeit: 0, stotter: 0, spritSoll: 30          // spritSoll = so viele Liter braucht der geplante Flug (Platzrunde: 30)
   };
 }
 
@@ -96,7 +103,13 @@ export function sysSchritt(f, e, dt) {
   // zu wenig Öl: Nach ein paar Minuten wird der Motor heiß und schwach
   const oelSchaden = s.oelWenig && s.laufZeit > 240;
   if (oelSchaden && !s.oelGemeldet) { s.oelGemeldet = true; sag('Der Öldruck fällt, der Motor wird schwach! Es war zu wenig Öl im Motor. Sofort landen.', 'schlimm'); }
-  f.motorKraft = (1 - 0.45 * s.eis) * (s.vorwaerm ? 0.92 : 1) * (oelSchaden ? 0.55 : 1);
+  // Wasser im Benzin (keine Wasserprobe gemacht): Es liegt unten im Tank und kommt bei Vollgas kurz nach dem Start im Motor an
+  if (s.wasser && f.motorAn && f.gas > 0.8) { s.vollZeit += dt; if (s.vollZeit > 25) { s.wasser = false; s.stotter = 20;
+    sag('Der Motor stottert und verliert Kraft: Wasser im Benzin! Die Wasserprobe beim Außencheck hätte es gezeigt. Nase runter, Tempo halten – gleich läuft er wieder.', 'schlimm'); } }
+  if (s.stotter > 0) { s.stotter -= dt; if (s.stotter <= 0) sag('Das Wasser ist durch, der Motor läuft wieder rund.', 'gut'); }
+  f.motorKraft = (1 - 0.45 * s.eis) * (s.vorwaerm ? 0.92 : 1) * (oelSchaden ? 0.55 : 1) * (s.stotter > 0 ? 0.6 : 1);
+  // Höhenmesser und Kurskreisel zeigen falsch, solange sie nicht eingestellt sind (instrumente.js rechnet das dazu)
+  f.hoeheFehler = s.hmesser ? 0 : s.hmFehler; f.kursFehler = s.kreisel ? 0 : s.krFehler;
   // loser Tankdeckel: Im Flug saugt der Fahrtwind Benzin heraus
   if (!s.deckel && !f.amBoden && f.sprit > 0) { f.sprit = Math.max(0, f.sprit - 0.03 * dt); if (!s.deckelGemeldet) { s.deckelGemeldet = true; sag('Aus dem Flügel zieht eine Benzinfahne: Ein Tankdeckel ist lose. Der Tank wird schnell leer!'); } }
   // Staurohr-Hülle: Der Fahrtmesser bekommt keine Luft

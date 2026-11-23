@@ -101,7 +101,8 @@ export const ORTE = [
   stadt('Tegernsee', 47.708, 11.757, 735), stadt('Dießen', 47.950, 11.105, 540), stadt('Tutzing', 47.908, 11.280, 600)
 ];
 // zusätzliche Höhen-Stützpunkte ohne Stadt (damit das Flachland stimmt)
-const STUETZEN = [[47.975, 11.225, 700], [48.02, 10.49, 600], [47.72, 10.33, 680], [48.55, 10.60, 430], [48.55, 12.60, 400], [47.72, 12.00, 800], [47.76, 12.32, 620], [48.20, 12.00, 500], [47.95, 11.00, 620], [48.10, 11.75, 530], [47.62, 11.50, 720], [47.50, 11.75, 900], [47.45, 12.10, 520], [47.42, 12.45, 760]].map(([lat, lon, meer]) => { const [x, z] = ort(lat, lon); return { x, z, meer }; });
+const STUETZEN = [[47.975, 11.225, 700], [48.02, 10.49, 600], [47.72, 10.33, 680], [48.55, 10.60, 430], [48.55, 12.60, 400], [47.72, 12.00, 800], [47.76, 12.32, 620], [48.20, 12.00, 500],
+  [47.95, 11.00, 620], [48.10, 11.75, 530], [47.62, 11.50, 720], [47.50, 11.75, 900], [47.45, 12.10, 520], [47.42, 12.45, 760]].map(([lat, lon, meer]) => { const [x, z] = ort(lat, lon); return { x, z, meer }; });
 const gipfel = (name, lat, lon, meer) => { const [x, z] = ort(lat, lon); return { name, x, z, meer }; };
 export const GIPFEL = [
   gipfel('Zugspitze', 47.421, 10.985, 2962), gipfel('Alpspitze', 47.430, 11.050, 2628), gipfel('Wendelstein', 47.703, 12.012, 1838),

@@ -73,11 +73,13 @@ export class Karte {
       const [a, b] = this.bild(O.x, O.z); g.fillStyle = '#7a5a48'; g.beginPath(); g.arc(a, b, 2 + O.gross, 0, 7); g.fill();
       text(O.name, a, b - 10 - O.gross, '#3a2a20', 10 + O.gross * 1.5, O.gross > 1);
     }
-    for (const G of GIPFEL) { if (!nah && G.meer < 2500) continue; const [a, b] = this.bild(G.x, G.z); g.fillStyle = '#5b4a3a'; g.beginPath(); g.moveTo(a, b - 5); g.lineTo(a - 5, b + 4); g.lineTo(a + 5, b + 4); g.closePath(); g.fill(); text(`${G.name} ${Math.round(G.meer / FT / 100) * 100} ft`, a, b + 13, '#4a3a2c', 10); }
+    for (const G of GIPFEL) { if (!nah && G.meer < 2500) continue; const [a, b] = this.bild(G.x, G.z); g.fillStyle = '#5b4a3a'; g.beginPath(); g.moveTo(a, b - 5);
+      g.lineTo(a - 5, b + 4); g.lineTo(a + 5, b + 4); g.closePath(); g.fill(); text(`${G.name} ${Math.round(G.meer / FT / 100) * 100} ft`, a, b + 13, '#4a3a2c', 10); }
     // Funkfeuer: Sechseck mit Kennung
     for (const F of FEUER) {
       const [a, b] = this.bild(F.x, F.z), an = was.feuer && was.feuer.id === F.id;
-      g.strokeStyle = an ? '#d0189a' : '#2a56b8'; g.lineWidth = an ? 3 : 2; g.beginPath(); for (let i = 0; i < 6; i++) { const w = i * Math.PI / 3; g[i ? 'lineTo' : 'moveTo'](a + 7 * Math.cos(w), b + 7 * Math.sin(w)); } g.closePath(); g.stroke(); g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(a, b, 1.6, 0, 7); g.fill();
+      g.strokeStyle = an ? '#d0189a' : '#2a56b8'; g.lineWidth = an ? 3 : 2; g.beginPath(); for (let i = 0; i < 6; i++) { const w = i * Math.PI / 3;
+        g[i ? 'lineTo' : 'moveTo'](a + 7 * Math.cos(w), b + 7 * Math.sin(w)); } g.closePath(); g.stroke(); g.fillStyle = g.strokeStyle; g.beginPath(); g.arc(a, b, 1.6, 0, 7); g.fill();
       g.textAlign = 'left'; text(nah ? `${F.id} ${F.kurz}` : F.id, a + 11, b, an ? '#a01078' : '#1f418f', 10, true); g.textAlign = 'center';
     }
     // Flugplätze: Kreis mit der Bahn als Strich, darunter Name und Höhe
@@ -95,7 +97,8 @@ export class Karte {
         const A = pl[i - 1], Z = pl[i], [a, b] = this.bild((A.x + Z.x) / 2, (A.z + Z.z) / 2), weit = Math.hypot(Z.x - A.x, Z.z - A.z);
         if (weit / this.mpp > 70) text(`${grad3(Math.atan2(-(Z.x - A.x), Z.z - A.z))}° · ${(weit / NM).toFixed(0)} NM`, a, b - 9, '#a01060', 11, true);
       }
-      pl.forEach((p, i) => { const [a, b] = this.bild(p.x, p.z), dran = was.nr === i; g.fillStyle = dran ? '#ffd23c' : '#e0208a'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(a, b, dran ? 9 : 7, 0, 7); g.fill(); g.stroke(); g.fillStyle = dran ? '#1b232b' : '#fff'; g.font = '700 10px sans-serif'; g.fillText(i === 0 ? 'S' : i === pl.length - 1 && pl.length > 1 && p.art === 'platz' ? 'Z' : String(i), a, b + 0.5); });
+      pl.forEach((p, i) => { const [a, b] = this.bild(p.x, p.z), dran = was.nr === i; g.fillStyle = dran ? '#ffd23c' : '#e0208a'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(a, b, dran ? 9 : 7, 0, 7); g.fill(); g.stroke();
+        g.fillStyle = dran ? '#1b232b' : '#fff'; g.font = '700 10px sans-serif'; g.fillText(i === 0 ? 'S' : i === pl.length - 1 && pl.length > 1 && p.art === 'platz' ? 'Z' : String(i), a, b + 0.5); });
     }
     // Die geflogene Spur und das Flugzeug
     if (was.spur && was.spur.length > 1) { g.strokeStyle = '#ffb020'; g.lineWidth = 2.2; g.beginPath(); was.spur.forEach(([x, z], i) => { const [a, b] = this.bild(x, z); if (i) g.lineTo(a, b); else g.moveTo(a, b); }); g.stroke(); }
@@ -108,6 +111,7 @@ export class Karte {
     const nm = [1, 2, 5, 10, 20, 50].find(n => n * NM / this.mpp > 60) || 50, breit = nm * NM / this.mpp;
     g.fillStyle = 'rgba(255,255,255,0.8)'; g.fillRect(10, H - 30, breit + 16, 22); g.strokeStyle = '#1b232b'; g.lineWidth = 2; g.beginPath(); g.moveTo(18, H - 16); g.lineTo(18, H - 12); g.lineTo(18 + breit, H - 12); g.lineTo(18 + breit, H - 16); g.stroke();
     g.fillStyle = '#1b232b'; g.font = '11px sans-serif'; g.fillText(`${nm} NM`, 18 + breit / 2, H - 21);
-    g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.arc(W - 24, 26, 16, 0, 7); g.fill(); g.fillStyle = '#c0202a'; g.beginPath(); g.moveTo(W - 24, 12); g.lineTo(W - 29, 28); g.lineTo(W - 19, 28); g.closePath(); g.fill(); g.fillStyle = '#1b232b'; g.font = '700 10px sans-serif'; g.fillText('N', W - 24, 35);
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.arc(W - 24, 26, 16, 0, 7); g.fill(); g.fillStyle = '#c0202a'; g.beginPath(); g.moveTo(W - 24, 12);
+    g.lineTo(W - 29, 28); g.lineTo(W - 19, 28); g.closePath(); g.fill(); g.fillStyle = '#1b232b'; g.font = '700 10px sans-serif'; g.fillText('N', W - 24, 35);
   }
 }

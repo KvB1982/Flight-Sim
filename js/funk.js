@@ -22,7 +22,7 @@ export const richtungVon = (P, x, z) => HIMMEL[Math.round(((Math.atan2(-(x - P.m
 // zurueck = was man danach wiederholen muss (oder nichts).
 // l = Lage: { start, ziel (Plätze), bahnStart, bahnZiel (Zahlen als Text), andereZiel, wind: 'Wind 270 Grad, 8 Knoten', naechster (Name des ersten Wegpunkts), vorhaben: 'Sichtflug nach …' oder 'Rundflug über …' }
 export const SPRUECHE = [
-  { id: 'start', name: 'Vor dem Start', wann: (f, l) => f.amBoden && !l.warOben, vorbei: (f, l) => l.warOben,
+  { id: 'start', name: 'Vor dem Start', wann: (f, l) => f.amBoden && !l.warOben && l.bereit !== false, vorbei: (f, l) => l.warOben,
     frage: l => [`${l.start.name} Info, ${RUF}, Lerche 172 an der Piste ${l.bahnStart}, ${l.vorhaben}, abflugbereit.`, `Hallo ${l.start.name}, ich fliege jetzt los.`, `${l.start.name} Info, ${RUF}, erbitte Landung.`],
     info: l => `${RUF}, ${l.start.name} Info, Piste ${l.bahnStart}, ${l.wind}, QNH 1013. Kein Verkehr gemeldet.`,
     zurueck: l => [`Piste ${l.bahnStart}, QNH 1013, ich starte, ${RUF}.`, `Piste ${l.bahnStartFalsch}, QNH 1013, ich starte, ${RUF}.`, 'Verstanden, danke.'],
@@ -47,11 +47,12 @@ export const SPRUECHE = [
 ];
 
 export class Funk {
-  constructor() { this.nr = 0; this.stufe = 0; this.frage = null; this.sagen = []; this.richtig = 0; this.falsch = 0; this.verpasst = []; this.verlauf = []; this.wart = 0; }
+  // zufall = Würfel für das Mischen der Antworten (das Prüfwerkzeug gibt einen festen mit, damit es immer dasselbe sieht)
+  constructor(zufall = Math.random) { this.zufall = zufall; this.nr = 0; this.stufe = 0; this.frage = null; this.sagen = []; this.richtig = 0; this.falsch = 0; this.verpasst = []; this.verlauf = []; this.wart = 0; }
   get fertig() { return this.nr >= SPRUECHE.length; }
-  // Antworten mischen – aber immer gleich für denselben Spruch (kein Zufall, damit das Prüfwerkzeug dasselbe sieht)
+  // Antworten mischen: Die richtige steht jedes Mal an einem anderen Platz (sonst lernt man nur die Plätze auswendig)
   stelle(texte, was, l) {
-    const reihe = [[1, 0, 2], [2, 1, 0], [0, 2, 1], [1, 2, 0], [2, 0, 1]][(this.nr * 2 + this.stufe) % 5];
+    const reihe = [0, 1, 2]; for (let i = 2; i > 0; i--) { const j = Math.floor(this.zufall() * (i + 1)); [reihe[i], reihe[j]] = [reihe[j], reihe[i]]; }
     this.frage = { name: SPRUECHE[this.nr].name, was, antworten: reihe.map(i => ({ text: texte[i], richtig: i === 0 })) }; this.l = { ...l };
   }
   // jedes Bild: Ist ein Funkspruch dran? Ist einer verpasst?
