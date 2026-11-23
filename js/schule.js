@@ -78,7 +78,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'geradeaus', name: '2 · Geradeaus und Kurven', kurz: 'Höhe und Kurs halten, Kurven nach links und rechts', start: 'luft', weg: null,
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 105 * KN, trimm: -0.73, gas: 0.85 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 105 * KN, trimm: -0.8, gas: 0.85 },
     schritte: [
       { sag: 'Wir sind in 2000 Fuß. Schau auf den Horizont: Liegt die Nase knapp darunter, fliegen wir geradeaus. Halte 20 Sekunden lang die Höhe und den Kurs Nord.',
         aufgabe: '20 Sekunden: Höhe 2000 ft und Kurs Nord (360) halten', fertig: f => Math.abs(fuss(f) - 2000) < 150 && kursFehlt(f, 360) < 10, halte: 20, fehler: hoeheWeg(2000), tipp: T.knueppel },
@@ -92,7 +92,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'steigen', name: '3 · Steigen und Sinken', kurz: 'Auf eine Höhe steigen, sie halten und wieder sinken', start: 'luft', weg: null,
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 100 * KN, trimm: -0.67, gas: 0.8 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 2000 * FT, tempo: 100 * KN, trimm: -0.74, gas: 0.8 },
     schritte: [
       { sag: 'Heute geht es rauf und runter. Merke dir: Das Gas bestimmt, ob wir steigen oder sinken. Die Nase bestimmt das Tempo. Gib Vollgas und nimm die Nase hoch, bis der Fahrtmesser 75 Knoten zeigt. Wir steigen auf 3000 Fuß.',
         aufgabe: 'Vollgas, Nase hoch auf 75 kn: steigen auf 3000 ft', fertig: f => fuss(f) > 2920, fehler: zuLangsam(58), tipp: T.gas },
@@ -106,7 +106,7 @@ export const LEKTIONEN = [
   },
   {
     id: 'abriss', name: '4 · Langsamflug und Abriss', kurz: 'Langsam fliegen, den Strömungsabriss erleben und beenden', start: 'luft', weg: null, hilfeMin: 'mittel',
-    lage: { x: 0, z: 2500, kurs: 0, hoehe: 3000 * FT, tempo: 90 * KN, trimm: -0.5, gas: 0.7 },
+    lage: { x: 0, z: 2500, kurs: 0, hoehe: 3000 * FT, tempo: 90 * KN, trimm: -0.56, gas: 0.7 },
     schritte: [
       { sag: 'Heute zeige ich dir, was passiert, wenn ein Flugzeug zu langsam wird. Dafür schalte ich den Schutz der Hilfe ab. Zuerst langsam fliegen: Gas auf 45 Prozent, Klappen auf 20 Grad, und die Nase so weit hoch, dass wir die Höhe halten.',
         aufgabe: 'Gas 45 %, Klappen 20°: langsamer werden bis unter 58 kn, Höhe halten', fertig: f => kn(f) < 58 && f.klappenStufe >= 2 && Math.abs(fuss(f) - 3000) < 250, halte: 6, fehler: hoeheWeg(3000, 400), tipp: T.klappen },

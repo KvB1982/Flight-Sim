@@ -19,6 +19,8 @@ import { baueLerche } from './flugzeugbau.js';
 import { maleBrett, maleHud, maleWind, BRETT_ANTEIL } from './instrumente.js';
 import { baueTouch } from './touch.js';
 import { Klang } from './klang.js';
+import { Kamera } from './kamera.js';
+import { TempoWaechter } from './tempo.js';
 
 const THREE = window.THREE;
 const frage = new URLSearchParams(location.search);
@@ -32,6 +34,7 @@ const merke = () => { try { localStorage.setItem(SPEICHER, JSON.stringify(E)); }
 
 const welt = new Welt($('gl'));
 const lerche = baueLerche(); welt.szene.add(lerche.gruppe);
+const tempo = new TempoWaechter(welt.renderer);
 const eingabe = new Eingabe(), neigung = eingabe.neigung = new Neigung(), klang = new Klang();
 const empfang = new KnueppelEmpfang(frage.has('lokal'));
 const istTouch = frage.has('touch') || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
@@ -68,7 +71,7 @@ function los(lektion) {
   ablauf = null; geher = null; brettAuf = false; panelStand = '';
   if (ganz) { f.motorAn = false; f.sys = neueSysteme(zustand); ablauf = new Ablauf(E.liste); geher = new Geher(f); listeAuf = E.liste !== 'selbst' && window.innerHeight >= 500; /* auf dem kleinen Handy-Bildschirm fängt die Liste zugeklappt an */ blick.el = 0; }
   eingabe.e.gas = s.lage.gas || 0; eingabe.handyTrimm = 0;
-  rest = 0; pause = false; imMenue = false; kamAlt = null; blickMitte(); blick.jetztAz = blick.jetztEl = 0;
+  rest = 0; pause = false; imMenue = false; kam.mitte(true);
   $('menue').classList.add('zu'); $('meldungen').innerHTML = '';
   $('ergebnis').classList.remove('an'); $('pause').classList.remove('an'); $('schule').classList.toggle('an', !!l); document.body.classList.toggle('in-schule', !!l);
   if (l) { $('sLehrer').textContent = ''; $('sAufgabe').textContent = ''; $('sName').textContent = l.name; if (hilfeJetzt() !== E.hilfe) melde('In dieser Lektion ist der Schutz vor dem Abriss ausgeschaltet (Hilfen: mittel).', 'info', 8); }
@@ -126,8 +129,8 @@ function zeigeErgebnis() {
 eingabe.wenn = {
   klappenAus() { if (f.klappenStufe < 3) { f.klappenStufe++; melde(`Klappen ${f.T.klappen[f.klappenStufe]}°`, 'info', 2); } },
   klappenEin() { if (f.klappenStufe > 0) { f.klappenStufe--; melde(`Klappen ${f.T.klappen[f.klappenStufe]}°`, 'info', 2); } },
-  kamera() { E.kamera = KAMERAS[(KAMERAS.indexOf(E.kamera) + 1) % KAMERAS.length]; kamAlt = null; blickMitte(); merke(); },
-  blickMitte() { blickMitte(); },
+  kamera() { E.kamera = KAMERAS[(KAMERAS.indexOf(E.kamera) + 1) % KAMERAS.length]; kam.alt = null; kam.mitte(); merke(); },
+  blickMitte() { kam.mitte(); },
   weg() { E.weg = !E.weg; merke(); melde(E.weg ? 'Flugweg in der Luft: an' : 'Flugweg in der Luft: aus', 'info', 3); },
   brett() { if (ablauf && !geher && !ergebnisAuf) { brettAuf = !brettAuf; malePanels(); } },
   liste() { if (ablauf) { listeAuf = !listeAuf; malePanels(); } },
@@ -151,7 +154,7 @@ function ganzSchritt(sek) {
   for (const m of s.meldungen.splice(0)) melde(m.text, m.art, m.art === 'gut' ? 4 : 9);
   for (const m of ablauf.meldungen.splice(0)) melde(m.text, m.art, m.art === 'gut' ? 7 : 6);
   // eingestiegen: ab jetzt sitzt man im Cockpit
-  if (geher && s.drin) { geher = null; kamAlt = null; blickMitte(); blick.jetztAz = blick.jetztEl = 0; melde('Du sitzt im Cockpit. Schalterbrett: Taste X oder Knopf „Schalter“.', 'info', 8); }
+  if (geher && s.drin) { geher = null; kam.mitte(true); melde('Du sitzt im Cockpit. Schalterbrett: Taste X oder Knopf „Schalter“.', 'info', 8); }
   spurZeit -= sek;
   if (spurZeit <= 0 && !geher && !ablauf.fertig) { spurZeit = 0.5; spur.push({ t: ablauf.t, x: f.p[0], y: f.p[1], z: f.p[2], h: f.hoeheGrund, v: f.ias, boden: f.amBoden }); }
   malePanels();
@@ -235,67 +238,9 @@ function maleSchilder(W, H) {
   }
 }
 
-// ---------------------------------------------------------------- Kameras
-const V = new THREE.Vector3(), Q = new THREE.Quaternion(), Q2 = new THREE.Quaternion(), Q3 = new THREE.Quaternion(), HOCH = new THREE.Vector3(0, 1, 0), QUER = new THREE.Vector3(1, 0, 0), UM = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-let kamAlt = null;
-// Wohin man schaut. Im Cockpit: az = Kopf nach rechts gedreht, el = nach oben. In der Außenansicht: az = Kamera um das
-// Flugzeug herum (0 = genau dahinter), el = Kamera höher, weit = Abstand. Mit dem Finger oder der Maus ziehen dreht den Blick
-// und er bleibt so; die Tasten J L I K gelten im Cockpit nur, solange man sie hält (kurz zur Seite schauen).
-const AUSSEN_EL = 0.27, AUSSEN_WEIT = 15;
-const blick = { az: 0, el: 0, weit: AUSSEN_WEIT, jetztAz: 0, jetztEl: 0, brettWeg: false };
-function blickMitte() { blick.az = 0; blick.el = 0; blick.weit = AUSSEN_WEIT; }
-function blickSchritt(dt) {
-  const cockpit = E.kamera === 'cockpit', li = eingabe.unten('KeyJ'), re = eingabe.unten('KeyL'), ho = eingabe.unten('KeyI'), ru = eingabe.unten('KeyK');
-  let az = blick.az, el = blick.el;
-  if (cockpit) {
-    // Tasten: zur Seite 90°, beide zusammen oder K = nach hinten, I = nach oben
-    if (li && re || ru) az = Math.PI * (blick.jetztAz < 0 ? -1 : 1); else if (li) az = -Math.PI / 2; else if (re) az = Math.PI / 2;
-    if (ho) el = 0.45;
-  } else {
-    blick.az += ((re ? 1 : 0) - (li ? 1 : 0)) * 1.6 * dt; blick.el = Math.max(-0.2, Math.min(1.25, blick.el + ((ho ? 1 : 0) - (ru ? 1 : 0)) * 0.9 * dt));
-    blick.weit = Math.max(6, Math.min(120, blick.weit * Math.exp(((eingabe.unten('Minus', 'NumpadSubtract') ? 1 : 0) - (eingabe.unten('Equal', 'BracketRight', 'NumpadAdd') ? 1 : 0)) * 1.2 * dt)));
-    az = blick.az; el = blick.el;
-  }
-  const k = 1 - Math.exp(-9 * dt);
-  blick.jetztAz += (az - blick.jetztAz) * k; blick.jetztEl += (el - blick.jetztEl) * k;
-}
-function stelleKamera(dt) {
-  const k = welt.kamera, W = window.innerWidth, H = window.innerHeight;
-  blickSchritt(dt);
-  // Zu Fuß: Die Kamera ist der Kopf des Menschen
-  if (geher) {
-    lerche.gruppe.visible = true; blick.brettWeg = true; k.clearViewOffset(); k.fov = 70; k.up.set(0, 1, 0);
-    const y = bodenHoehe(geher.x, geher.z) + 1.6, el = Math.max(-0.7, Math.min(0.7, blick.el));
-    k.position.set(geher.x, y, geher.z); k.lookAt(geher.x - Math.sin(geher.kurs) * Math.cos(el), y + Math.sin(el), geher.z + Math.cos(geher.kurs) * Math.cos(el));
-    k.updateProjectionMatrix(); return;
-  }
-  // Wer im Cockpit zur Seite oder nach oben schaut, sieht das Instrumentenbrett nicht mehr – dafür Flügel und Streben
-  blick.brettWeg = E.kamera === 'cockpit' && (Math.abs(blick.jetztAz) > 0.5 || blick.jetztEl > 0.3);
-  lerche.gruppe.visible = E.kamera !== 'cockpit' || blick.brettWeg;
-  if (E.kamera === 'cockpit') {
-    // Der Kopf des Piloten. Das Instrumentenbrett verdeckt unten das Bild, deshalb liegt der Horizont weiter oben.
-    Q.set(f.q[0], f.q[1], f.q[2], f.q[3]);
-    V.set(...f.T.auge).applyQuaternion(Q); k.position.set(f.p[0] + V.x, f.p[1] + V.y, f.p[2] + V.z);
-    k.quaternion.copy(Q).multiply(UM).multiply(Q2.setFromAxisAngle(HOCH, -blick.jetztAz)).multiply(Q3.setFromAxisAngle(QUER, blick.jetztEl));
-    k.fov = 70;
-    if (blick.brettWeg) k.clearViewOffset(); else { const mehr = 1 + BRETT_ANTEIL * 0.75; k.setViewOffset(W, H * mehr, 0, H * (mehr - 1), W, H); }
-  } else {
-    k.clearViewOffset();
-    if (E.kamera === 'hinten') {
-      // um das Flugzeug herum, der Horizont bleibt gerade; die Kamera schwenkt weich nach
-      const w = f.kurs + blick.jetztAz, el = AUSSEN_EL + blick.jetztEl, d = blick.weit, vorn = Math.max(0, Math.cos(blick.jetztAz)) * 8;
-      const ziel = new THREE.Vector3(f.p[0] + Math.sin(w) * d * Math.cos(el), f.p[1] + d * Math.sin(el) - Math.sin(f.nick) * 6 * Math.cos(blick.jetztAz), f.p[2] - Math.cos(w) * d * Math.cos(el));
-      ziel.y = Math.max(ziel.y, bodenHoehe(ziel.x, ziel.z) + 1.2);
-      if (!kamAlt) kamAlt = ziel.clone(); else kamAlt.lerp(ziel, 1 - Math.exp(-6 * dt));
-      k.position.copy(kamAlt); k.up.set(0, 1, 0); k.lookAt(f.p[0] - Math.sin(f.kurs) * vorn, f.p[1] + 1, f.p[2] + Math.cos(f.kurs) * vorn); k.fov = 62;
-    } else {
-      // vom Turm aus: Die Kamera steht fest und schaut dem Flugzeug nach, je weiter weg, desto stärker das Fernglas
-      k.position.set(PLATZ.vorfeld.x - 30, 17, PLATZ.vorfeld.z - 48); k.up.set(0, 1, 0); k.lookAt(f.p[0], f.p[1], f.p[2]);
-      k.fov = Math.max(1.2, Math.min(50, 2 * Math.atan(22 / k.position.distanceTo(new THREE.Vector3(...f.p))) / GRAD));
-    }
-  }
-  k.updateProjectionMatrix();
-}
+// ---------------------------------------------------------------- Kameras (js/kamera.js)
+const kam = new Kamera(welt, lerche, eingabe, E), blick = kam.blick;
+const V = new THREE.Vector3();          // Hilfs-Punkt für die Schilder beim Außencheck
 
 // ---------------------------------------------------------------- Malfläche für Instrumente
 const hudC = $('hud'), hg = hudC.getContext('2d');
@@ -336,33 +281,15 @@ function bild(sek, ohneBild) {
     if (unterricht) schuleSchritt(sek);
     if (ablauf) ganzSchritt(sek);
   }
-  lerche.stelle(f, pause ? 0 : sek); welt.schritt(f, luft); marken3d.visible = !!geher; if (geher) stelleMarken(); { const w = wegJetzt(); for (const k in welt.wege) welt.wege[k].visible = !!E.weg && k === w; } stelleKamera(sek); if (!ohneBild) { welt.male(); maleAnzeigen(); } klang.schritt(f, pause);
+  lerche.stelle(f, pause ? 0 : sek); welt.schritt(f, luft); marken3d.visible = !!geher; if (geher) stelleMarken(); { const w = wegJetzt(); for (const k in welt.wege) welt.wege[k].visible = !!E.weg && k === w; } kam.stelle(sek, f, geher); if (!ohneBild) { welt.male(); maleAnzeigen(); } klang.schritt(f, pause);
   if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher);
   empfang.pruefen();
   infoZeit -= sek;
   if (infoZeit <= 0 && empfang.verbunden) { infoZeit = 0.1; empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2) }); }
 }
-// Tempo-Wächter (abgeschaut vom Rennspiel): Dauert ein Bild im Schnitt länger als 1/48 Sekunde, malt das Spiel die Welt mit
-// weniger Bildpunkten. Läuft es etwa sechs Sekunden ruhig, versucht es wieder mehr – aber nie die Stufe, die schon zu langsam war.
-// Die Instrumente bleiben immer scharf. `?scharf` in der Adresse schaltet den Wächter ab.
-const SCHARF = { an: !new URLSearchParams(location.search).has('scharf'), voll: Math.min(window.devicePixelRatio || 1, 2), jetzt: 0, zuLangsam: Infinity, schnitt: 1 / 60, ruhig: 0, warte: 2 };
-SCHARF.jetzt = SCHARF.voll;
-function tempoPruefen(sek) {
-  if (!SCHARF.an || sek <= 0 || pause || imMenue) return;
-  SCHARF.schnitt += (sek - SCHARF.schnitt) * 0.05;
-  if ((SCHARF.warte -= sek) > 0) return;                              // nach jedem Umschalten kurz abwarten
-  const stelle = neu => { SCHARF.jetzt = neu; welt.renderer.setPixelRatio(neu); SCHARF.warte = 2; SCHARF.ruhig = 0; SCHARF.schnitt = 1 / 60; };
-  if (SCHARF.schnitt > 1 / 48) {
-    SCHARF.zuLangsam = SCHARF.jetzt;
-    if (SCHARF.jetzt > 0.75) stelle(Math.max(0.75, SCHARF.jetzt - 0.25));
-  } else if (SCHARF.schnitt < 1 / 56) {
-    SCHARF.ruhig += sek;
-    if (SCHARF.ruhig > 6 && SCHARF.jetzt + 0.25 <= SCHARF.voll && SCHARF.jetzt + 0.25 < SCHARF.zuLangsam) stelle(SCHARF.jetzt + 0.25);
-  } else SCHARF.ruhig = 0;
-}
 function schleife(t) {
   const sek = Math.min(0.1, (t - zuletzt) / 1000 || 0); zuletzt = t;
-  if (!window.__flugsim.angehalten) { bild(sek); tempoPruefen(sek); }
+  if (!window.__flugsim.angehalten) { bild(sek); tempo.pruefe(sek, !pause && !imMenue); }
   requestAnimationFrame(schleife);
 }
 
@@ -436,18 +363,18 @@ $('tasten').innerHTML = TASTEN_HILFE.map(([t, was]) => `<div><b>${t}</b><span>${
   const los = ev => {
     if (!zieh || ev.pointerId !== zieh.id) return;
     const jetzt = performance.now();
-    if (zieh.weg < 8 && jetzt - zieh.t < 300) { if (jetzt - letzterTipp < 400 && !geher) blickMitte(); letzterTipp = jetzt; }
+    if (zieh.weg < 8 && jetzt - zieh.t < 300) { if (jetzt - letzterTipp < 400 && !geher) kam.mitte(); letzterTipp = jetzt; }
     zieh = null;
   };
   gl.addEventListener('pointerup', los); gl.addEventListener('pointercancel', los);
   gl.addEventListener('wheel', ev => { if (!imMenue && E.kamera === 'hinten') { blick.weit = Math.max(6, Math.min(120, blick.weit * Math.exp(ev.deltaY * 0.0012))); ev.preventDefault(); } }, { passive: false });
 }
 
-const touch = istTouch ? baueTouch(eingabe, { brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'), kamera: () => eingabe.druecke('kamera'), menue, weg: () => eingabe.druecke('weg'), blickMitte, mitte: () => { neigung.mitte(); empfang.senden({ k: 'mitte' }); melde('Diese Haltung ist jetzt die Mitte', 'info', 2); }, neigen: () => $('bNeigen').onclick() }) : null;
+const touch = istTouch ? baueTouch(eingabe, { brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'), kamera: () => eingabe.druecke('kamera'), menue, weg: () => eingabe.druecke('weg'), blickMitte: () => kam.mitte(), mitte: () => { neigung.mitte(); empfang.senden({ k: 'mitte' }); melde('Diese Haltung ist jetzt die Mitte', 'info', 2); }, neigen: () => $('bNeigen').onclick() }) : null;
 document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
-window.__flugsim = { scharf: SCHARF, tempoPruefen, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
+window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
 else if (frage.has('ganz')) { if (MODI[frage.get('ganz')]) E.liste = frage.get('ganz'); los('ganz'); }

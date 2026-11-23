@@ -16,7 +16,7 @@ export const MODI = { hilfe: 'Mit Hilfe: Das Spiel macht jeden Handgriff und erk
 const kn = f => f.ias / KN, fuss = f => f.hoeheGrund / FT, tempoBoden = f => Math.hypot(f.v[0], f.v[2]);
 // Ein Punkt, der nur einen Schalter stellt
 const sch = (id, wert, text) => { const d = SCHALTER.find(x => x.id === id); return { id, text: text || `${d.name} ${wert ? d.an : d.aus}`, ok: (f, s) => s[id] === wert, tu: f => { schalte(f, id, wert); }, tipp: true, grund: d.grund }; };
-const START_TRIMM = -0.3;
+const START_TRIMM = -0.35;
 
 export const PHASEN = [
   {
