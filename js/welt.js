@@ -120,7 +120,8 @@ export class Welt {
   baueEinenPlatz(B) {
     const S = new THREE.Group(); S.position.set(B.x, B.hoehe, B.z); S.rotation.y = -B.kurs; this.szene.add(S);
     const L = B.lang, Br = B.breit, asphalt = B.belag !== 'gras', V = B.vorfeld;
-    const flach = (w, l, x, z, farbe, y = 0.03, map) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), new THREE.MeshLambertMaterial({ color: farbe, map: map || null, polygonOffset: true, polygonOffsetFactor: -1 - y * 30, polygonOffsetUnits: -1 - y * 30 })); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); S.add(m); return m; };
+    const flach = (w, l, x, z, farbe, y = 0.03, map) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), new THREE.MeshLambertMaterial({ color: farbe, map: map || null, polygonOffset: true, polygonOffsetFactor: -1 - y * 30, polygonOffsetUnits: -1 - y * 30 }));
+      m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); S.add(m); return m; };
     // Bild oben = fernes Ende. Eine liegende Fläche zeigt ihr „oben“ nach −z, deshalb um die Hochachse drehen.
     const bahn = flach(Br, L, 0, L / 2, 0xffffff, 0.05, bahnBild(B)); bahn.rotation.z = Math.PI;
     const grau = asphalt ? 0x4a4c50 : 0x6f9c49;                               // Rollwege: Asphalt oder kurz gemähtes Gras

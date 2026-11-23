@@ -7,12 +7,16 @@ export const STELLEN = [
   {
     id: 'tankL', name: 'Linker Flügel: Tank', ort: [2.6, 1.7],
     tun: (f, s) => [
-      { text: 'In den Tank schauen', fertig: s.geprueft.tank, tu: () => { s.geprueft.tank = true; return `Im Tank sind ${liter(f)} Liter. ${liter(f) < 30 ? 'Das ist zu wenig – tanken!' : 'Das reicht für eine Platzrunde mit Reserve.'}${s.deckel ? '' : ' Und der Tankdeckel ist lose!'}`; } },
+      { text: 'In den Tank schauen', fertig: s.geprueft.tank, tu: () => { s.geprueft.tank = true;
+        return `Im Tank sind ${liter(f)} Liter. ${liter(f) < s.spritSoll ? `Das ist zu wenig: Dieser Flug braucht mit Reserve ${s.spritSoll} Liter – tanken!`
+          : s.spritSoll > 30 ? `Das reicht: Dieser Flug braucht mit Reserve ${s.spritSoll} Liter.` : 'Das reicht für eine Platzrunde mit Reserve.'}${s.deckel ? '' : ' Und der Tankdeckel ist lose!'}`; } },
+      { text: 'Wasserprobe: unten am Tank etwas Benzin ablassen', fertig: s.geprueft.wasser, tu: () => { s.geprueft.wasser = true; const nass = s.wasser; s.wasser = false;
+        return nass ? 'Im Probenglas liegt unten Wasser! Du lässt so lange ab, bis nur noch blaues Benzin kommt. Gut, dass du nachgesehen hast.' : 'Im Probenglas ist nur klares, blaues Benzin. Kein Wasser.'; } },
       ...(s.deckel ? [] : [{ text: 'Tankdeckel festdrehen', fertig: false, tu: () => { s.deckel = true; return 'Der Deckel sitzt wieder fest.'; } }]),
       { text: 'Tanken: halb voll (100 Liter)', fertig: liter(f) >= 100, tu: () => `Der Tankautomat füllt ${tanke(f, 100)} Liter nach.` },
       { text: 'Tanken: ganz voll (208 Liter)', fertig: f.sprit >= f.T.tank - 1, tu: () => `Der Tankautomat füllt ${tanke(f, 999)} Liter nach. Voll ist das Flugzeug schwerer und steigt langsamer.` }
     ],
-    erledigt: (f, s) => s.geprueft.tank && s.deckel
+    erledigt: (f, s) => s.geprueft.tank && s.deckel && s.geprueft.wasser
   },
   {
     id: 'staurohr', name: 'Staurohr unter dem Flügel', ort: [4.9, 1.2],

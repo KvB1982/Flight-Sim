@@ -9,6 +9,8 @@ Dazu die Flugschule: acht Lektionen mit Fluglehrerin Jule vom Rollen bis zum All
 Und „Der ganze Flug“: Außencheck zu Fuß, Schalterbrett, Checklisten, Motor anlassen, tanken, abstellen und ein Flugbuch.
 Neu in Stufe 4 der Überlandflug: das Alpenvorland mit sechs Flugplätzen, eine Karte, ein Flugplaner (Kurs, Zeit, Sprit),
 Wegpunkte, Funkfeuer, Funk am kleinen Flugplatz und ein Zeitraffer für lange Strecken.
+Der Überlandflug beginnt auf Wunsch am geparkten Flugzeug (Außencheck, Tanken, Checklisten), und die Navigation gibt es in drei Stufen:
+mit Pfeil zum nächsten Punkt, nur mit Karte oder ganz selbst mit Kurs und Zeit vom Planzettel.
 
 ## Ausprobieren
 
@@ -35,6 +37,7 @@ Steuerknüppel (im Menü „Handy als Steuerknüppel verbinden“, QR-Code mit d
 | H | Hilfen wechseln |
 | P, N | Pause, Menü |
 | M, O, 1 2 3 | Überlandflug: Karte, Zeitraffer, Funkspruch wählen |
+| 4, 5 / 6, 7 | Überlandflug: nächstes Funkfeuer, Kurs zum Funkfeuer drehen, Kurs direkt hin (Ziffern setzen hier kein Gas) |
 | X, Y, Enter | Der ganze Flug: Schalterbrett, Checkliste auf und zu, nächsten Handgriff erledigen |
 
 Wie das Spiel aufgebaut ist und was noch nicht geprüft wurde, steht in `CLAUDE.md`.

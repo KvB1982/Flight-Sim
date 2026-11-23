@@ -28,7 +28,15 @@
 <div id="brett"><div id="bKopf"><b>Schalterbrett</b><span id="bTank"></span><button id="bZu" class="klein">✕ zu</button></div><div id="bSchalter"></div></div>
 <div id="stelle"><b id="stName"></b><p id="stText"></p><div id="stTun" class="wahl"></div></div>
 <div id="funk"><div id="fuKopf"></div><div id="fuVerlauf"></div><div id="fuTipp"></div><div id="fuFrage"></div><div id="fuAntworten"></div></div>
-<div id="flugkarte"><canvas id="fkBild"></canvas><div id="fkLeiste"><span id="fkText"></span><button id="fkMinus" class="klein">−</button><button id="fkPlus" class="klein">＋</button><button id="fkMitte" class="klein">Zum Flugzeug</button><button id="fkZu" class="klein">✕ zu (M)</button></div></div>
+<div id="flugkarte">
+  <canvas id="fkBild"></canvas>
+  <div id="fkLeiste">
+    <span id="fkText"></span>
+    <button id="fkFeuer" class="klein" title="nächstes Funkfeuer einstellen (Taste 4) – oder ein Funkfeuer auf der Karte antippen">Funkfeuer</button>
+    <button id="fkKursM" class="klein" title="Kurs am Funkfeuer 5° zurück (Taste 5)">Kurs −</button><button id="fkKursP" class="klein" title="Kurs am Funkfeuer 5° vor (Taste 6)">Kurs ＋</button>
+    <button id="fkMinus" class="klein">−</button><button id="fkPlus" class="klein">＋</button><button id="fkMitte" class="klein">Zum Flugzeug</button><button id="fkZu" class="klein">✕ zu (M)</button>
+  </div>
+</div>
 <div id="planer">
   <div id="plKarte"><canvas id="plBild"></canvas><div id="plZoom"><button id="plPlus" class="klein">＋</button><button id="plMinus" class="klein">−</button><button id="plAlles" class="klein">Alles zeigen</button></div></div>
   <div id="plSeite">
@@ -41,6 +49,8 @@
     <div class="wahl"><button id="plTiefer">− 500 ft</button><b id="plHoehe"></b><button id="plHoeher">＋ 500 ft</button></div>
     <div class="wahl" style="margin-top:6px"><button id="plWeniger">− 10 Liter</button><b id="plSprit"></b><button id="plMehr">＋ 10 Liter</button></div>
     <h2>Wetter</h2><div class="wahl" id="plWetter"></div>
+    <h2>Navigation</h2><div class="wahl" id="plNavi"></div><p id="plNaviText" class="hinweis"></p>
+    <h2>Wo geht es los?</h2><div class="wahl" id="plStart"></div><p id="plStartText" class="hinweis"></p>
     <h2>Die Rechnung</h2><div id="plBeine"></div><p id="plSumme" class="hinweis"></p><div id="plHinweise"></div>
     <button id="plLos">Losfliegen</button><button id="plZurueck">Zurück zum Menü</button>
   </div>
@@ -59,7 +69,8 @@
     <button id="bGanz">Zum Flugzeug gehen</button>
     <details><summary id="buchKopf">Flugbuch</summary><div id="buchListe"></div></details>
     <h2 class="gross">Überlandflug</h2>
-    <p class="hinweis">Von Platz zu Platz durch das Alpenvorland: Auf der Karte eine Strecke planen (Kurs, Zeit, Sprit), Wegpunkte abfliegen, am Flugplatz funken und am Ziel landen. Sechs Flugplätze zwischen Augsburg, München, dem Inn und den Bergen.</p>
+    <p class="hinweis">Von Platz zu Platz durch das Alpenvorland: Auf der Karte eine Strecke planen (Kurs, Zeit, Sprit), Wegpunkte abfliegen, am Flugplatz funken und am Ziel landen –
+      auf Wunsch als ganzer Flug mit Außencheck, Tanken und Checklisten. Sechs Flugplätze zwischen Augsburg, München, dem Inn und den Bergen.</p>
     <button id="bPlan">Flug planen</button>
     <h2 class="gross">Freier Flug</h2>
     <h2>Wo geht es los?</h2><div class="wahl" id="wStart"></div><p id="startText" class="hinweis"></p>

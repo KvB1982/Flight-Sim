@@ -5,7 +5,8 @@
 // Im Flug sagt das Navi, wohin es zum nächsten Punkt geht und wie weit man neben der Linie ist.
 // Nord auf der Karte ist auch Nord auf dem Kompass (die kleine Abweichung der Kompassnadel lässt das Spiel weg).
 import { KN, FT, GRAD } from './flugzeuge.js';
-import { PLAETZE, ORTE, SEEN, GIPFEL, ort, NM, NN, hoechstesZwischen } from './region.js';
+import { dichte, RHO0 } from './physik.js';
+import { PLAETZE, ORTE, SEEN, GIPFEL, ort, NM, NN, hoechstesZwischen, platzVon } from './region.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const wickel = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
@@ -53,21 +54,32 @@ export const AUSFLUEGE = [
 ];
 
 // ---------------------------------------------------------------- Der Flugplaner
-export const REISE = { tempo: 100, verbrauch: 38, rollen: 4, reserve: 30 };   // Reise mit 100 kn, 38 Liter je Stunde, 4 Liter für Rollen und Start, 30 Minuten Reserve
+// Reise mit 100 kn auf dem Fahrtmesser und 35 Litern je Stunde, 3 Liter für Anlassen und Rollen, 30 Minuten Reserve.
+// Steigen: 700 Fuß je Minute mit 78 kn und Vollgas (50 Liter je Stunde). Anflug: 5 Minuten für Platzrunde und Landung mit wenig Gas (22 Liter je Stunde).
+// Die Zahlen sind an der Lerche nachgemessen (künstlicher Pilot, tools/ueberland.mjs).
+export const REISE = { tempo: 100, verbrauch: 35, rollen: 3, reserve: 30, steigen: 700, steigTempo: 78, steigVerbrauch: 50, anflug: 5, anflugVerbrauch: 22 };
+// So weit darf man höchstens neben der Linie fliegen, damit es den Navigations-Stern gibt (in NM) – je nach Navi-Stufe
+export const NAVI_STUFEN = { leicht: 'Leicht: Das Navi zeigt Pfeil, Entfernung und Ablage', mittel: 'Mittel: nur die Karte (Taste M)', selbst: 'Selbst: nur Kurs und Stoppuhr vom Planzettel' };
+export const NAVI_GRENZE = { leicht: 1.0, mittel: 1.5, selbst: 2.0 };
 // plan = { punkte: [Punkt …], hoehe: Fuß über dem Meer, sprit: Liter im Tank }; wind = { aus: Grad, kn }
 export function rechne(plan, wind = { aus: 0, kn: 0 }) {
   const P = plan.punkte, beine = [], wAus = wind.aus * GRAD, hinweise = [];
+  // Oben ist die Luft dünner: Bei 100 kn auf dem Fahrtmesser ist das Flugzeug in 4500 Fuß in Wahrheit etwa 107 kn schnell
+  const tas = REISE.tempo * Math.sqrt(RHO0 / dichte(plan.hoehe * FT));
   let weit = 0, zeit = 0, mindest = 0;
   for (let i = 1; i < P.length; i++) {
     const a = P[i - 1], b = P[i], kurs = kursVon(a.x, a.z, b.x, b.z), strecke = Math.hypot(b.x - a.x, b.z - a.z) / NM;
     // Der Wind schiebt das Flugzeug zur Seite. Damit es trotzdem auf der Linie bleibt, hält man die Nase etwas in den Wind (Vorhaltewinkel).
-    const vor = Math.asin(clamp(wind.kn / REISE.tempo * Math.sin(wAus - kurs), -0.9, 0.9));
-    const grund = Math.max(20, REISE.tempo * Math.cos(vor) - wind.kn * Math.cos(wAus - kurs));       // Tempo über Grund in kn
+    const vor = Math.asin(clamp(wind.kn / tas * Math.sin(wAus - kurs), -0.9, 0.9));
+    const grund = Math.max(20, tas * Math.cos(vor) - wind.kn * Math.cos(wAus - kurs));       // Tempo über Grund in kn
     const min = strecke / grund * 60, hoch = (hoechstesZwischen(a.x, a.z, b.x, b.z) + NN) / FT;
     beine.push({ von: a, nach: b, kurs, steuer: kurs + vor, vor, strecke, grund, min, liter: min / 60 * REISE.verbrauch, hoch });
     weit += strecke; zeit += min; mindest = Math.max(mindest, hoch);
   }
-  const liter = zeit / 60 * REISE.verbrauch + REISE.rollen, noetig = liter + REISE.reserve / 60 * REISE.verbrauch;
+  // Dazu kommen der Steigflug (langsamer und durstiger als die Reise) und der Anflug am Ziel
+  const S = P[0] && platzVon(P[0].id), steigMin = S ? Math.max(0, plan.hoehe - S.meer / FT) / REISE.steigen : 0, zeitBeine = zeit;
+  zeit += steigMin * (1 - REISE.steigTempo / tas) + (beine.length ? REISE.anflug : 0);
+  const liter = zeit / 60 * REISE.verbrauch + steigMin / 60 * (REISE.steigVerbrauch - REISE.verbrauch) - (beine.length ? REISE.anflug : 0) / 60 * (REISE.verbrauch - REISE.anflugVerbrauch) + REISE.rollen, noetig = liter + REISE.reserve / 60 * REISE.verbrauch;
   mindest = Math.ceil((mindest + 1000) / 500) * 500;                         // 1000 Fuß über dem Höchsten, auf 500 aufgerundet
   if (P.length < 2) hinweise.push({ art: 'schlimm', text: 'Der Plan braucht einen Start und ein Ziel.' });
   if (P.length >= 2 && (P[0].art !== 'platz' || P[P.length - 1].art !== 'platz')) hinweise.push({ art: 'schlimm', text: 'Start und Ziel müssen Flugplätze sein.' });
@@ -75,7 +87,7 @@ export function rechne(plan, wind = { aus: 0, kn: 0 }) {
   else if (plan.sprit < noetig) hinweise.push({ art: 'warn', text: `Knapp: Mit Reserve für ${REISE.reserve} Minuten wären ${Math.ceil(noetig)} Liter richtig.` });
   if (plan.hoehe < mindest) hinweise.push({ art: 'warn', text: `Zu tief geplant: Auf dem Weg liegt Gelände bis ${Math.round((mindest - 1000) / 100) * 100} ft. Flieg mindestens ${mindest} ft.` });
   if (beine.some(b => b.strecke < 2)) hinweise.push({ art: 'warn', text: 'Zwei Punkte liegen sehr dicht beieinander.' });
-  return { beine, weit, zeit, liter, noetig, mindest, hinweise, ok: !hinweise.some(h => h.art === 'schlimm') };
+  return { beine, weit, tas, zeit, zeitBeine, steigMin, liter, noetig, mindest, hinweise, ok: !hinweise.some(h => h.art === 'schlimm') };
 }
 
 // ---------------------------------------------------------------- Das Navi im Flug
@@ -96,7 +108,9 @@ export class Navi {
   schritt(f) {
     const L = this.lage(f), p = this.punkte[this.nr];
     p.nah = Math.min(p.nah, L.weit);
-    if (!f.amBoden && this.nr > 0) this.maxAb = Math.max(this.maxAb, Math.min(Math.abs(L.ablage), L.weit));
+    // Wie weit neben der Linie? Rund um den Startplatz (5 km) und den Zielplatz (10 km) zählt es nicht: Dort fliegt man zur Platzrunde und in den Anflug.
+    const amStart = this.nr === 1 && Math.hypot(f.p[0] - L.von.x, f.p[2] - L.von.z) < 5000, amZiel = this.letztes && L.weit < 10000;
+    if (!f.amBoden && !amStart && !amZiel) this.maxAb = Math.max(this.maxAb, Math.min(Math.abs(L.ablage), L.weit));
     if (this.letztes) return null;
     if (L.weit < TREFFER * 0.6 || (L.entlang > L.lang && p.nah < 8000) || (p.nah < TREFFER && L.weit > p.nah + 400)) {
       p.getroffen = p.nah < TREFFER; this.nr++; this.neu = p; return p;

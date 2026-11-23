@@ -89,7 +89,7 @@ function ganzerFlug(modus) {
   if (selbst) {
     for (const [h, q] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0, 0]]) { p.e.hoehe = h; p.e.quer = q; warte(f, p, flug, ablauf, 0.6); }
     p.e.bremse = 1; p.e.gas = 0.55; warte(f, p, flug, ablauf, 5, () => s.motorProbe); p.e.gas = 0; warte(f, p, flug, ablauf, 1.5);
-    f.trimm = -0.35; schalte(f, 'lande', true);
+    f.trimm = -0.35; schalte(f, 'lande', true); schalte(f, 'hmesser', true); schalte(f, 'kreisel', true);
   } else warte(f, p, flug, ablauf, 30, () => ablauf.liste(f).every(x => x.ok));
   pruefe(`${modus}: „Vor dem Start“ vollständig`, ablauf.liste(f).every(x => x.ok), ablauf.liste(f).filter(x => !x.ok).map(x => x.text).join(', '));
   // 4. die Platzrunde: Der Pilot der Lektion 7 fliegt, der Unterricht läuft nur mit, damit er weiß, wo er ist
@@ -106,11 +106,12 @@ function ganzerFlug(modus) {
   warte(f, p, flug, ablauf, 30, () => ablauf.phase.id === 'abstellen');
   pruefe(`${modus}: am Vorfeld, Checkliste „Abstellen“`, ablauf.phase.id === 'abstellen' && Math.hypot(f.p[0] - PLATZ.vorfeld.x, f.p[2] - PLATZ.vorfeld.z) < 30, `x ${f.p[0].toFixed(0)} z ${f.p[2].toFixed(0)}`);
   // 6. Abstellen und Flugbuch
-  if (selbst) for (const pk of PHASEN[7].punkte) { pk.tu(f, s, p.e); warte(f, p, flug, ablauf, 1); }
+  if (selbst) for (const pk of PHASEN.find(x => x.id === 'abstellen').punkte) { pk.tu(f, s, p.e); warte(f, p, flug, ablauf, 1); }
   else warte(f, p, flug, ablauf, 60, () => ablauf.liste(f).every(x => x.ok));
   pruefe(`${modus}: Flugbuch darf geschrieben werden`, ablauf.kannEnden(f));
   const e = ablauf.ende(f, flug); schreibeBuch(speicher, e, f);
-  pruefe(`${modus}: Flugbuch – Regeln 5 Sterne, nichts vergessen`, e.regeln === 5 && !e.vergessen.length && e.amPlatz, `${e.gezaehlt ?? ablauf.gezaehlt} Punkte, Dauer ${Math.round(e.dauer / 60)} min, Flugzeit ${Math.round(e.flugZeit / 60)} min, vergessen: ${e.vergessen.map(x => x.text).join(' | ') || 'nichts'}`);
+  pruefe(`${modus}: Flugbuch – Regeln 5 Sterne, nichts vergessen`, e.regeln === 5 && !e.vergessen.length && e.amPlatz,
+    `${e.gezaehlt ?? ablauf.gezaehlt} Punkte, Dauer ${Math.round(e.dauer / 60)} min, Flugzeit ${Math.round(e.flugZeit / 60)} min, vergessen: ${e.vergessen.map(x => x.text).join(' | ') || 'nichts'}`);
   pruefe(`${modus}: Eintrag gespeichert, Rest-Benzin gemerkt`, ladeBuch(speicher).length === 1 && Math.abs(ladeZustand(speicher).sprit - f.sprit) < 0.1 && !ladeZustand(speicher).batterieLeer, `${liter(f)} Liter übrig`);
 }
 console.log('Der ganze Flug, alles selbst:'); ganzerFlug('selbst');
@@ -121,7 +122,7 @@ console.log('Was passiert, wenn man etwas vergisst:');
 // fertig zum Rollen: alles erledigt bis auf das, was `ausser` nennt
 function startklar(ausser = {}, sprit = 60) {
   const f = geparkt({ sprit }), s = f.sys, p = new Pilot(f, welt, { hilfe: 'leicht' });
-  Object.assign(s, { klemme: false, gurte: true, park: false, hahn: true, gemisch: true, haupt: true, zuend: true, keile: false, huelle: false, drin: true }, ausser);
+  Object.assign(s, { klemme: false, gurte: true, park: false, hahn: true, gemisch: true, haupt: true, zuend: true, keile: false, huelle: false, hmesser: true, kreisel: true, drin: true }, ausser);
   f.motorAn = true; setze(f, { ...STARTS.bahn.lage, boden: 0 }); f.motorAn = true;
   return { f, s, p };
 }
@@ -138,6 +139,13 @@ function startklar(ausser = {}, sprit = 60) {
   for (let t = 0; t < 70; t += TAKT) { p.tempoMitNase(p.sicht(), 75 * KN, TAKT); p.kurs(p.sicht(), Math.PI); tick(f, p, null, null); }
   const kraft = f.motorKraft; schalte(f, 'vorwaerm', true); warte(f, p, null, null, 10);
   pruefe('Wenig Gas ohne Vorwärmung: Der Vergaser vereist, mit Vorwärmung taut er auf', kraft < 0.75 && s.eis < 0.05 && f.motorKraft > 0.9, `Kraft ${kraft.toFixed(2)} → ${f.motorKraft.toFixed(2)}`); }
+{ const { f, s, p } = startklar({ wasser: true }); const flug = new Flug(), l = LEKTIONEN.find(x => x.id === 'start'), u = new Unterricht(l); let schwach = 0, hoch = 0;
+  for (let t = 0; t < 70; t += TAKT) { PILOTEN.start(p, p.sicht(), f, TAKT, u, {}); p.e.gas = 1; tick(f, p, flug, null); if (f.motorKraft < 0.7) { schwach += TAKT; hoch ||= f.hoeheGrund; } }
+  pruefe('Keine Wasserprobe: Kurz nach dem Start stottert der Motor 20 Sekunden lang', Math.abs(schwach - 20) < 0.5 && hoch > 15 && !f.bruch && f.motorKraft === 1, `ab ${(hoch / FT).toFixed(0)} ft, ${schwach.toFixed(0)} s schwach, danach wieder volle Kraft`); }
+{ const { f, s, p } = startklar({ hmesser: false, kreisel: false }); warte(f, p, null, null, 0.5); const h = f.hoeheFehler, k = f.kursFehler; schalte(f, 'hmesser', true); schalte(f, 'kreisel', true); warte(f, p, null, null, 0.5);
+  pruefe('Höhenmesser und Kurskreisel nicht eingestellt: Beide zeigen falsch, eingestellt stimmen sie', Math.abs(h) > 40 && Math.abs(k) > 0.28 && f.hoeheFehler === 0 && f.kursFehler === 0, `${(h / FT).toFixed(0)} ft und ${(k / GRAD).toFixed(0)}° daneben`); }
+{ const f = geparkt({ sprit: 60 }), a = new Ablauf('selbst'); a.nr = PHASEN.findIndex(x => x.id === 'nachLandung'); f.klappenStufe = 2; f.sys.lande = true; f.amBoden = false; f.hoeheGrund = 30; a.schritt(f, 0.1, null, {});
+  pruefe('Durchstarten nach dem Aufsetzen: „Nach der Landung“ wird nicht als vergessen gewertet', a.phase.id === 'nachStart' && a.vergessen.length === 0); }
 { const speicher = neuerSpeicher(), { f, s } = startklar(); f.motorAn = false; s.haupt = true;
   schreibeBuch(speicher, { datum: 'x' }, f);
   const g = geparkt(ladeZustand(speicher)); g.sys.haupt = true; const text = anlassen(g);

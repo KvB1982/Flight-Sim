@@ -7,9 +7,12 @@ export const TASTEN_HILFE = [
   ['← →', 'Querruder: Schräglage und Kurve'], ['↓ / ↑', 'ziehen (Nase hoch) / drücken (Nase runter)'],
   ['Q / E', 'Seitenruder links / rechts (am Boden: lenken)'], ['W / S', 'mehr Gas / weniger Gas (auch Bild↑ Bild↓, Ziffern 0–9)'],
   ['F / V', 'Klappen eine Stufe ausfahren / einfahren'], ['T / G', 'Trimmung: Nase schwerer / leichter (Shift+↑↓ geht auch)'],
-  ['B oder Leertaste', 'Radbremse'], ['C', 'Ansicht wechseln'], ['J / L, I / K', 'Blick nach links / rechts, hoch / runter (im Cockpit: K = nach hinten). Außen dreht sich die Kamera ums Flugzeug, + und − = näher und weiter'], ['U', 'Blick wieder geradeaus'], ['R', 'Flugweg der Platzrunde an / aus'], ['H', 'Hilfen: leicht, mittel, echt'], ['P', 'Pause'], ['N', 'neu anfangen (Menü)'],
+  ['B oder Leertaste', 'Radbremse'], ['C', 'Ansicht wechseln'],
+    ['J / L, I / K', 'Blick nach links / rechts, hoch / runter (im Cockpit: K = nach hinten). Außen dreht sich die Kamera ums Flugzeug, + und − = näher und weiter'],
+      ['U', 'Blick wieder geradeaus'], ['R', 'Flugweg der Platzrunde an / aus'], ['H', 'Hilfen: leicht, mittel, echt'], ['P', 'Pause'], ['N', 'neu anfangen (Menü)'],
   ['Gamepad / Joystick', 'linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung, Y = Ansicht'],
   ['M / O / 1 2 3', 'Überlandflug: Karte auf und zu / Zeitraffer an und aus / Funkspruch wählen'],
+  ['4 / 5 6 / 7', 'Überlandflug: nächstes Funkfeuer einstellen / Kurs am Funkfeuer 5° zurück und vor / Kurs direkt zum Funkfeuer. Im Überlandflug stellen die Ziffern nicht das Gas (dafür W und S)'],
   ['X / Y / Enter', 'Der ganze Flug: Schalterbrett / Checkliste auf und zu / nächsten Handgriff erledigen. Zu Fuß: Pfeiltasten gehen und drehen'],
 ];
 
@@ -31,7 +34,7 @@ export class Eingabe {
       this.taste[ev.code] = true;
       const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer' }[ev.code];
       if (k) this.druecke(k);
-      if (/^Digit\d$/.test(ev.code) && this.ziffer && this.ziffer(+ev.code.slice(5))) return;      // beim Funken wählen 1, 2, 3 die Antwort
+      if (/^Digit\d$/.test(ev.code) && this.ziffer && this.ziffer(+ev.code.slice(5))) return;      // im Überlandflug gehören die Ziffern dem Funk und dem Funkfeuer
       if (/^Digit\d$/.test(ev.code)) this.e.gas = ev.code === 'Digit0' ? 1 : +ev.code.slice(5) / 10;
     });
     window.addEventListener('keyup', ev => { this.taste[ev.code] = false; });

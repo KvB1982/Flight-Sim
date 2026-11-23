@@ -8,9 +8,12 @@ import { FT } from '../js/flugzeuge.js';
 import { mitHilfe } from '../js/hilfen.js';
 import { neueLuft, WETTER } from '../js/atmosphaere.js';
 import { Flug } from '../js/flug.js';
-import { PLAETZE, platzVon, platzWelt, bahnLage, bahnKurs, bodenHoehe, bodenArt, NN, NM, GIPFEL, ORTE } from '../js/region.js';
+import { PLAETZE, platzVon, platzWelt, platzLokal, bahnLage, bahnKurs, bodenHoehe, bodenArt, NN, NM, GIPFEL, ORTE } from '../js/region.js';
 import { rechne, punktVon, AUSFLUEGE, kursVon, feuerAnzeige, FEUER, REISE } from '../js/navigation.js';
 import { Reise, LITER, RAFFER } from '../js/ueberland.js';
+import { Funk } from '../js/funk.js';
+import { neueSysteme, sysSchritt, sysRuder, liter } from '../js/systeme.js';
+import { Ablauf, schreibeBuch, ladeZustand } from '../js/checklisten.js';
 import { Pilot, GRAD, wickel } from './pilot.mjs';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -21,6 +24,8 @@ const pruefe = (name, ok, mehr = '') => { if (!ok) schlecht++; console.log(`${ok
 
 // Wind wie im Spiel: Die Höhe für den Wind zählt ab dem Boden darunter
 export const weltMit = luft => ({ wind: (p, t) => luft.wind([p[0], p[1] - bodenHoehe(p[0], p[2]), p[2]], t), boden: bodenHoehe });
+// Ein Würfel, der immer dieselben Zahlen wirft (damit das Werkzeug jedes Mal dasselbe prüft)
+export const wuerfel = saat => () => { saat = (saat * 1664525 + 1013904223) % 4294967296; return saat / 4294967296; };
 export const planAus = (ids, hoehe, sprit = 90) => ({ punkte: ids.map(punktVon), hoehe, sprit });
 
 // ---------------------------------------------------------------- Der künstliche Überland-Pilot
@@ -43,16 +48,19 @@ export function reisePilot(p, s, f, dt, R, m, opt = {}) {
   }
   if (m.phase === 'reise') {
     // auf der Linie zum nächsten Wegpunkt bleiben: auf einen Punkt 2,5 km voraus auf der Linie zielen
-    const L = R.navi.lage(f), vor = clamp(L.entlang + 2500, 0, L.lang);
-    zu(L.von.x - Math.sin(L.kurs) * vor, L.von.z + Math.cos(L.kurs) * vor);
+    // (opt.daneben: Er fliegt mit Absicht so viele Meter rechts neben der Linie – für die Prüfung des Navigations-Sterns)
+    const L = R.navi.lage(f), vor = clamp(L.entlang + 2500, 0, L.lang), ab = R.navi.letztes && L.weit > 11000 ? opt.daneben || 0 : 0;
+    zu(L.von.x - Math.sin(L.kurs) * vor - Math.cos(L.kurs) * ab, L.von.z + Math.cos(L.kurs) * vor - Math.sin(L.kurs) * ab);
     if (s.y < yReise - 40) { p.e.gas = 1; p.tempoMitNase(s, 80 * KN, dt); }
     else { p.hoeheMitNase(s, yReise, dt); m.ig = clamp((m.ig ?? 0.7) + (REISE.tempo * KN - s.ias) * 0.004 * dt, 0.4, 1); p.e.gas = clamp(m.ig + 0.03 * (REISE.tempo * KN - s.ias), 0.3, 1); }
+    if (R.raffer) { p.e.hoehe = 0; p.e.quer = 0; }                // im Zeitraffer fliegt das Spiel: Hände weg vom Knüppel
     // Zeitraffer in der Mitte eines Beins
     if (opt.raffer && !R.raffer && L.entlang > 6000 && L.weit > 9000 && Math.abs(L.ablage) < 500 && Math.abs(s.y - yReise) < 40 && Math.abs(s.roll) < 0.1 && !m.rafferAus) { p.e.hoehe = 0; p.e.quer = 0; if (R.rafferAn(f)) m.raffer = (m.raffer || 0) + 1; }
     if (R.navi.letztes && L.weit < 13000) {
       // Anflug vorbereiten: ein Punkt 4 km vor der Bahn; kommt man von der falschen Seite, erst seitlich daneben
       const A = platzWelt(Z, 0, ende ? Z.lang + 4000 : -4000), bk = bahnKurs(Z, ende), LL = bahnLage(Z, ende, s.x, s.z);
-      m.weg = [A]; if (LL.laengs > -2500) { const seite = LL.quer >= 0 ? -1 : 1, [bx, bz] = platzWelt(Z, seite * 2600 * (ende ? -1 : 1), ende ? Z.lang + 4000 : -4000); m.weg.unshift([bx, bz]); if (LL.laengs > 0) { const [cx, cz] = platzWelt(Z, seite * 2600 * (ende ? -1 : 1), ende ? Z.lang - 1500 : 1500); m.weg.unshift([cx, cz]); } }
+      m.weg = [A]; if (LL.laengs > -2500) { const seite = LL.quer >= 0 ? -1 : 1, [bx, bz] = platzWelt(Z, seite * 2600 * (ende ? -1 : 1), ende ? Z.lang + 4000 : -4000);
+        m.weg.unshift([bx, bz]); if (LL.laengs > 0) { const [cx, cz] = platzWelt(Z, seite * 2600 * (ende ? -1 : 1), ende ? Z.lang - 1500 : 1500); m.weg.unshift([cx, cz]); } }
       m.phase = 'anflug'; m.bk = bk;
     }
     return;
@@ -83,8 +91,8 @@ export function reisePilot(p, s, f, dt, R, m, opt = {}) {
 
 // Einen ganzen Flug rechnen. Gibt Reise, Flugzeug und Ergebnis zurück.
 export function fliege(plan, wetterName = 'ruhig', opt = {}) {
-  const wetter = WETTER[wetterName], luft = neueLuft(wetter), welt = weltMit(luft), R = new Reise(plan, wetter), flug = new Flug();
-  const f = neuesFlugzeug('lerche', { sprit: plan.sprit * LITER }); setze(f, R.startLage());
+  const wetter = WETTER[wetterName], luft = neueLuft(wetter), welt = weltMit(luft), R = new Reise(plan, wetter, { zufall: wuerfel(7), navi: opt.navi }), flug = new Flug();
+  const f = neuesFlugzeug('lerche', { sprit: plan.sprit * LITER }); setze(f, R.startLage()); f.nn = NN;             // wie im Spiel: Die Luft ist so dünn wie in echter Höhe über dem Meer
   const p = new Pilot(f, welt, { hilfe: 'mittel', verzug: 0.15 }), m = {}, log = [];
   let rafferZeit = 0, rafferKurs = 0, rafferHoehe = 0, tLog = 0;
   for (let t = 0; t < 3 * 3600 && !R.fertig; t += TAKT) {
@@ -97,9 +105,65 @@ export function fliege(plan, wetterName = 'ruhig', opt = {}) {
     for (const x of R.meldungen.splice(0)) log.push(`${Math.round(t)} s  ${x.text}`);
     for (const x of R.funk.sagen.splice(0)) log.push(`${Math.round(t)} s  ${x.wer}: ${x.text}`);
     for (const x of flug.meldungen.splice(0)) log.push(`${Math.round(t)} s  ${x.text}`);
-    if (laut && (tLog -= TAKT) <= 0) { tLog = 60; log.push(`${Math.round(t)} s  ${m.phase}  ${Math.round(f.ias / KN)} kn  ${Math.round((f.p[1] + NN) / FT)} ft  Kurs ${Math.round(f.kurs / GRAD)}  → ${R.navi.ziel.name} ${(R.navi.lage(f).weit / NM).toFixed(1)} NM  ab ${Math.round(R.navi.lage(f).ablage)} m`); }
+    if (laut && (tLog -= TAKT) <= 0) { tLog = 60;
+      log.push(`${Math.round(t)} s  ${m.phase}  ${Math.round(f.ias / KN)} kn  ${Math.round((f.p[1] + NN) / FT)} ft  Kurs ${Math.round(f.kurs / GRAD)}  → ${R.navi.ziel.name} ${(R.navi.lage(f).weit / NM).toFixed(1)} NM  ab ${Math.round(R.navi.lage(f).ablage)} m`); }
   }
   return { R, f, m, log, e: R.ergebnis(f), rafferZeit, rafferKurs, rafferHoehe };
+}
+
+// Der künstliche Pilot für den ganzen Überlandflug (die Checklisten macht das Spiel im Modus „Mit Hilfe“):
+// m.teil = aussen (wartet, bis der Außencheck fertig ist, steigt ein) → cockpit → rollen → probe → flug → zurueck → abstellen → ende
+export function ganzPilot(p, s, f, dt, R, ablauf, m) {
+  m.teil ??= 'aussen'; m.liter0 ??= liter(f);
+  const S = R.start, Z = R.ziel, fertigListe = () => ablauf.liste(f).every(x => x.ok), tempo = Math.hypot(f.v[0], f.v[2]);
+  // am Boden einen Weg aus Punkten abrollen; gibt true zurück, wenn der letzte Punkt erreicht ist
+  const rolle = () => {
+    const [zx, zz] = m.rollweg[0], d = Math.hypot(zx - s.x, zz - s.z), letzter = m.rollweg.length === 1;
+    if (d < (letzter ? 4 : 8)) { m.rollweg.shift(); return !m.rollweg.length; }
+    const hin = kursVon(s.x, s.z, zx, zz), fehlt = Math.abs(wickel(hin - s.kurs)), vSoll = (fehlt > 0.3 || d < 25 ? 5 : 11) * KN;
+    p.e.seite = clamp(2.2 * wickel(hin - s.kurs) - 0.6 * f.wende, -1, 1); p.e.quer = 0; p.e.hoehe = 0;
+    p.e.gas = clamp(0.12 + 0.12 * (vSoll - f.ias), 0, 0.3); p.e.bremse = f.ias > vSoll + 2.5 ? 0.8 : 0;
+    return false;
+  };
+  const halt = teil => { p.e.gas = 0; p.e.bremse = 1; p.e.seite = 0; m.teil = teil; };
+  if (m.teil === 'aussen') { if (fertigListe()) { m.getankt = liter(f) - m.liter0; f.sys.drin = true; m.teil = 'cockpit'; } }
+  else if (m.teil === 'cockpit') {
+    if (ablauf.phase.id === 'vorStart' && !f.sys.park) {
+      const e = R.endeStart, L = S.lang, V = S.vorfeld, lz = z => e ? L - z : z;
+      m.rollweg = [[-52, V.z], [-45, V.z + (e ? 25 : -25)], [-45, lz(55)], [-25, lz(28)], [0, lz(45)], [0, lz(70)]].map(([x, z]) => platzWelt(S, x, z)); m.teil = 'rollen';
+    }
+  } else if (m.teil === 'rollen') { if (rolle()) halt('probe'); }
+  else if (m.teil === 'probe') { if (fertigListe() && tempo < 0.3) m.teil = 'flug'; }
+  else if (m.teil === 'flug') {
+    reisePilot(p, s, f, dt, R, m, {});
+    if (m.unten && tempo < 6) {
+      const e = R.landeBahn ?? R.endeZiel, [, z0] = platzLokal(Z, f.p[0], f.p[2]), d = e ? -1 : 1, V = Z.vorfeld;
+      m.rollweg = [[-25, z0 + d * 30], [-45, z0 + d * 60], [-45, V.z + (z0 + d * 60 > V.z ? 25 : -25)], [-70, V.z], [-95, V.z]].map(([x, z]) => platzWelt(Z, x, z)); m.teil = 'zurueck';
+    }
+  } else if (m.teil === 'zurueck') { if (rolle()) halt('abstellen'); }
+  else if (m.teil === 'abstellen') { if (ablauf.phase.id === 'abstellen' && fertigListe() && ablauf.kannEnden(f)) m.teil = 'ende'; }
+}
+// Der ganze Überlandflug: geparkt am Startplatz, Außencheck, tanken, Checklisten (das Spiel hilft: Modus „Mit Hilfe“),
+// zur Bahn rollen, fliegen, am Ziel zum Vorfeld rollen, abstellen, Flugbuch. Der Tank ist am Anfang fast leer (14 kg, knapp 20 Liter).
+export function fliegeGanz(plan, wetterName = 'ruhig') {
+  const wetter = WETTER[wetterName], welt = weltMit(neueLuft(wetter)), R = new Reise(plan, wetter, { zufall: wuerfel(7), ganz: true }), flug = new Flug();
+  const daten = {}, speicher = { getItem: k => daten[k] ?? null, setItem: (k, v) => { daten[k] = v; } };
+  const f = neuesFlugzeug('lerche', { sprit: 14 }); setze(f, R.startLage()); f.nn = NN; f.trimm = -0.35; f.motorAn = false;
+  f.sys = neueSysteme({}, wuerfel(5)); f.sys.spritSoll = Math.ceil(R.rechnung.noetig);
+  const ablauf = new Ablauf('hilfe'), p = new Pilot(f, welt, { hilfe: 'mittel', verzug: 0.15 }), m = {}, log = [], S = R.start, Z = R.ziel, start = { ...f.sys, liter: liter(f) };
+  ablauf.ueberland = true;
+  let t = 0; m.liter0 = start.liter;
+  for (; t < 3 * 3600 && m.teil !== 'ende' && !f.bruch; t += TAKT) {
+    ganzPilot(p, p.sicht(), f, TAKT, R, ablauf, m);
+    schritt(f, sysRuder(mitHilfe(R.steuer(f, p.e, TAKT), f, 'mittel', TAKT), f), TAKT, welt); sysSchritt(f, p.e, TAKT);
+    flug.schritt(f, TAKT); ablauf.schritt(f, TAKT, flug, p.e); R.schritt(f, TAKT, flug);
+    ablauf.zielNah = R.navi.letztes && Math.hypot(f.p[0] - Z.mx, f.p[2] - Z.mz) < 14000;
+    for (const x of [...f.sys.meldungen.splice(0), ...ablauf.meldungen.splice(0), ...R.meldungen.splice(0), ...flug.meldungen.splice(0)]) log.push(`${Math.round(t)} s  [${m.teil}] ${x.text}`);
+    for (const x of R.funk.sagen.splice(0)) log.push(`${Math.round(t)} s  ${x.wer}: ${x.text}`);
+  }
+  const e = R.ergebnis(f), b = m.teil === 'ende' ? ablauf.ende(f, flug) : null;
+  if (b) schreibeBuch(speicher, { ...b, ueberland: e.sterne }, f);
+  return { R, f, e, b, log, teil: m.teil, start, getankt: m.getankt, zustand: ladeZustand(speicher), t };
 }
 
 if (imKnoten) {
@@ -119,9 +183,10 @@ if (imKnoten) {
     // -------------------------------------------------------------- 2. Der Flugplaner
     console.log('\nDer Flugplaner');
     const a = AUSFLUEGE[0], plan = planAus(a.punkte, a.hoehe), r0 = rechne(plan), rW = rechne(plan, { aus: 270, kn: 20 });
-    pruefe('Kleines Dreieck: Strecke und Zeit', r0.weit > 35 && r0.weit < 60 && Math.abs(r0.zeit - r0.weit / REISE.tempo * 60) < 0.01, `${r0.weit.toFixed(1)} NM, ${r0.zeit.toFixed(1)} min, ${r0.liter.toFixed(1)} Liter, Mindesthöhe ${r0.mindest} ft`);
+    pruefe('Kleines Dreieck: Strecke und Zeit', r0.weit > 35 && r0.weit < 60 && Math.abs(r0.zeitBeine - r0.weit / r0.tas * 60) < 0.01 && r0.tas > 105 && r0.tas < 110 && r0.zeit > r0.zeitBeine + REISE.anflug,
+      `${r0.weit.toFixed(1)} NM, ${r0.zeit.toFixed(1)} min, ${r0.liter.toFixed(1)} Liter, Mindesthöhe ${r0.mindest} ft`);
     const ost = rW.beine[0];   // erstes Bein geht nach Südosten: Westwind schiebt
-    pruefe('Mit 20 kn Westwind: schneller nach Osten, Nase in den Wind gedreht', ost.grund > REISE.tempo + 5 && wickel(ost.steuer - ost.kurs) > 0.02, `über Grund ${ost.grund.toFixed(0)} kn, Vorhaltewinkel ${(ost.vor / GRAD).toFixed(1)}°`);
+    pruefe('Mit 20 kn Westwind: schneller nach Osten, Nase in den Wind gedreht', ost.grund > rW.tas + 5 && wickel(ost.steuer - ost.kurs) > 0.02, `über Grund ${ost.grund.toFixed(0)} kn, Vorhaltewinkel ${(ost.vor / GRAD).toFixed(1)}°`);
     pruefe('Rundflug bei Wind dauert länger als ohne', rW.zeit > r0.zeit, `${rW.zeit.toFixed(1)} statt ${r0.zeit.toFixed(1)} min`);
     pruefe('Zu wenig Sprit wird gemeldet', !rechne({ ...plan, sprit: 10 }).ok);
     pruefe('Zu tief geplant wird gemeldet', rechne({ ...plan, hoehe: 2500 }).hinweise.some(h => /tief/.test(h.text)), `Gelände bis ${Math.round(Math.max(...r0.beine.map(b => b.hoch)))} ft`);
@@ -133,11 +198,14 @@ if (imKnoten) {
 
   // ---------------------------------------------------------------- 3. Flüge
   console.log('\nFlüge mit dem künstlichen Piloten');
-  const zeige = (name, x) => { if (laut) console.log(x.log.map(l => '        ' + l).join('\n')); return `${'★'.repeat(x.e.sterne)}${'☆'.repeat(5 - x.e.sterne)}  ${Math.round(x.e.min)} min (Plan ${Math.round(x.R.rechnung.zeit)})  ${Math.round(x.e.liter)} l (Plan ${Math.round(x.R.rechnung.liter)})  Abweichung ${(x.R.navi.maxAb / NM).toFixed(1)} NM  Landung ${x.e.landung}★`; };
+  const zeige = (name, x) => { if (laut) console.log(x.log.map(l => '        ' + l).join('\n'));
+    return `${'★'.repeat(x.e.sterne)}${'☆'.repeat(5 - x.e.sterne)}  ${Math.round(x.e.min)} min (Plan ${Math.round(x.R.rechnung.zeit)})  ${Math.round(x.e.liter)} l (Plan ${Math.round(x.R.rechnung.liter)})  Abweichung ${(x.R.navi.maxAb / NM).toFixed(1)} NM  Landung ${x.e.landung}★`; };
   if (!nur || nur === 'dreieck') {
     const a = AUSFLUEGE[0], x = fliege(planAus(a.punkte, a.hoehe), 'ruhig', { raffer: true });
     pruefe('Kleines Dreieck (windstill, mit Zeitraffer)', x.e.sterne === 5 && !x.f.bruch, zeige('dreieck', x));
-    pruefe('  Plan stimmt: Zeit und Sprit höchstens ein Viertel daneben', Math.abs(x.e.min / x.R.rechnung.zeit - 1) < 0.25 && Math.abs(x.e.liter / x.R.rechnung.liter - 1) < 0.25);
+    pruefe('  Plan stimmt: Zeit höchstens 15 % daneben, Sprit höchstens 10 % mehr und 20 % weniger als geplant',
+      Math.abs(x.e.min / x.R.rechnung.zeit - 1) < 0.15 && x.e.liter / (x.R.rechnung.liter - REISE.rollen) > 0.8 && x.e.liter / (x.R.rechnung.liter - REISE.rollen) < 1.1,
+        `Zeit ${(x.e.min / x.R.rechnung.zeit * 100 - 100).toFixed(0)} %, Sprit ohne Rollen ${(x.e.liter / (x.R.rechnung.liter - REISE.rollen) * 100 - 100).toFixed(0)} %`);
     pruefe('  Zeitraffer hält Kurs und Höhe', x.m.raffer >= 2 && x.rafferZeit > 120 && x.rafferKurs < 4 && x.rafferHoehe < 120, `${x.m.raffer}-mal an, ${Math.round(x.rafferZeit)} s, höchstens ${x.rafferKurs.toFixed(1)}° und ${Math.round(x.rafferHoehe)} ft daneben`);
     if (!x.e.zeilen.every(z => z.ok)) console.log(x.e.zeilen.map(z => `        ${z.ok ? 'ok' : '--'} ${z.name}: ${z.text}`).join('\n'));
   }
@@ -159,6 +227,17 @@ if (imKnoten) {
     pruefe('Über Weilheim nach Ohlstadt am Alpenrand (Gras)', x.e.sterne >= 4 && x.e.amZiel && !x.f.bruch, zeige('ohlstadt', x));
   }
 
+  if (!nur || nur === 'ganz') {
+    const a = AUSFLUEGE[3], x = fliegeGanz(planAus(a.punkte, a.hoehe, Infinity), 'ruhig');
+    if (laut) console.log(x.log.map(l => '        ' + l).join('\n'));
+    pruefe('Ganzer Flug nach Königsdorf: geparkt, Außencheck, Checklisten, rollen, fliegen, am Ziel abstellen', x.teil === 'ende' && !x.f.bruch && x.e.amZiel && x.e.sterne >= 4,
+      `${'★'.repeat(x.e.sterne)}${'☆'.repeat(5 - x.e.sterne)}  ${Math.round(x.t / 60)} min mit allem, ${Math.round(x.e.min)} min in der Luft` + (x.teil === 'ende' ? '' : `, hängt in „${x.teil}“`));
+    pruefe('  getankt wird beim Außencheck: Der Tank war fast leer, der Flug braucht mehr', x.start.liter < x.start.spritSoll && x.getankt > 50, `${x.start.liter} Liter im Tank, nötig ${x.start.spritSoll}, getankt ${x.getankt}`);
+    pruefe('  Checklisten: nichts vergessen, am Ziel auf dem Vorfeld geparkt', !!x.b && x.b.vergessen.length === 0 && x.b.amPlatz && x.b.regeln === 5, x.b ? `Regeln ${x.b.regeln}★ ${x.b.vergessen.map(v => v.text).join(', ')}` : '');
+    pruefe('  das Flugzeug merkt sich den Tank für den nächsten Flug', !!x.b && Math.abs(x.zustand.sprit - x.f.sprit) < 0.1 && liter(x.f) < x.start.liter + x.getankt, `${liter(x.f)} Liter übrig`);
+    if (!x.e.zeilen.every(z => z.ok)) console.log(x.e.zeilen.map(z => `        ${z.ok ? 'ok' : '--'} ${z.name}: ${z.text}`).join('\n'));
+  }
+
   // ---------------------------------------------------------------- 4. Fehler haben Folgen
   if (!nur) {
     console.log('\nFehler haben Folgen');
@@ -167,6 +246,15 @@ if (imKnoten) {
     pruefe('Wer nie funkt, bekommt den Funk-Stern nicht', !stumm.e.zeilen[3].ok && stumm.R.funk.verpasst.length >= 3, stumm.e.zeilen[3].text);
     const falsch = fliege(planAus(a.punkte, a.hoehe), 'seite', { falscheBahn: true });
     pruefe('Landung mit Rückenwind auf der falschen Bahn kostet den Lande-Stern', !falsch.e.zeilen[4].ok && falsch.R.landeBahn !== falsch.R.endeZiel, falsch.e.zeilen[4].text.slice(-70));
+    const schief = fliege(planAus(a.punkte, a.hoehe), 'ruhig', { daneben: 3600 });
+    pruefe('Wer weit neben der Linie fliegt, bekommt den Navigations-Stern nicht (Stufe „Selbst“ erlaubt es)', !schief.e.zeilen[0].ok && schief.e.amZiel && fliege(planAus(a.punkte, a.hoehe), 'ruhig', { daneben: 3600, navi: 'selbst' }).e.zeilen[0].ok, schief.e.zeilen[0].text);
+    const knapp = fliege(planAus(a.punkte, a.hoehe, 22), 'ruhig');
+    pruefe('Mit weniger als 30 Minuten Reserve gelandet: kein Sprit-Stern', !knapp.e.zeilen[2].ok && knapp.e.rest > 5, knapp.e.zeilen[2].text);
+    const lahm = fliege(planAus(a.punkte, a.hoehe), 'ruhig', { daneben: -2600 }), zl = lahm.e.zeilen[1];
+    pruefe('Zeit-Stern: höchstens Plan mal 1,15 plus 2 Minuten', zl.ok === (lahm.e.min <= lahm.R.rechnung.zeit * 1.15 + 2), zl.text);
+    // Funk: Die richtige Antwort steht nicht immer am selben Platz
+    const plaetze = [0, 0, 0], wf = wuerfel(3); for (let i = 0; i < 300; i++) { const F = new Funk(wf); F.stelle(['a', 'b', 'c'], '', {}); plaetze[F.frage.antworten.findIndex(x => x.richtig)]++; }
+    pruefe('Funk: Die richtige Antwort steht mal an Platz 1, mal 2, mal 3', plaetze.every(n => n > 70), plaetze.join(' / ') + ' von 300');
     const R = new Reise(planAus(a.punkte, a.hoehe), WETTER.ruhig), ff = neuesFlugzeug('lerche'); setze(ff, R.startLage());
     pruefe('Zeitraffer geht nicht am Boden', !R.rafferAn(ff));
     R.funk.schritt(ff, R.lage(ff), 0.1); const fr = R.funk.frage; R.funk.waehle(fr.antworten.findIndex(x => !x.richtig));

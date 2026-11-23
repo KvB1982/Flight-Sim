@@ -2,7 +2,7 @@
 // Die Rechnung selbst (Kurs, Zeit, Sprit) steht in navigation.js, die Karte malt karte.js.
 import { Karte } from './karte.js';
 import { PLAETZE } from './region.js';
-import { rechne, punktNah, punktVon, AUSFLUEGE, grad3, REISE } from './navigation.js';
+import { rechne, punktNah, punktVon, AUSFLUEGE, grad3, REISE, NAVI_STUFEN } from './navigation.js';
 import { WETTER } from './atmosphaere.js';
 import { FT, GRAD } from './flugzeuge.js';
 
@@ -35,9 +35,10 @@ export function bediene(canvas, karte, neu, wennTipp) {
 }
 
 export class Planer {
-  // E = Einstellungen (E.plan = { ids, hoehe, sprit }, E.wetter), merke() speichert sie, wennLos(plan) startet den Flug
-  constructor(E, merke, wennLos, wennZu) {
-    this.E = E; this.merke = merke; this.karte = new Karte($('plBild')); this.an = false;
+  // E = Einstellungen (E.plan = { ids, hoehe, sprit }, E.wetter, E.navi, E.reiseStart), merke() speichert sie,
+  // wennLos(plan) startet den Flug, tank() = so viele Liter sind im Tank des geparkten Flugzeugs
+  constructor(E, merke, wennLos, wennZu, tank = () => 0) {
+    this.E = E; this.merke = merke; this.tank = tank; this.karte = new Karte($('plBild')); this.an = false;
     if (!E.plan || !Array.isArray(E.plan.ids) || E.plan.ids.some(id => !punktVon(id))) E.plan = { ids: [...AUSFLUEGE[0].punkte], hoehe: AUSFLUEGE[0].hoehe, sprit: 90 };
     bediene($('plBild'), this.karte, () => this.maleKarte(), (x, z) => this.tipp(x, z));
     $('plPlus').onclick = () => { this.karte.zoome(0.7); this.maleKarte(); }; $('plMinus').onclick = () => { this.karte.zoome(1.4); this.maleKarte(); };
@@ -45,12 +46,15 @@ export class Planer {
     $('plLeer').onclick = () => { E.plan.ids = ['lerchenfeld']; this.neu(); };
     $('plUm').onclick = () => { E.plan.ids.reverse(); this.neu(true); };
     $('plTiefer').onclick = () => { E.plan.hoehe = Math.max(2500, E.plan.hoehe - 500); this.neu(); }; $('plHoeher').onclick = () => { E.plan.hoehe = Math.min(11000, E.plan.hoehe + 500); this.neu(); };
-    $('plWeniger').onclick = () => { E.plan.sprit = Math.max(20, E.plan.sprit - 10); this.neu(); }; $('plMehr').onclick = () => { E.plan.sprit = Math.min(SPRIT_MAX, E.plan.sprit + 10); this.neu(); };
+    $('plWeniger').onclick = () => { E.plan.sprit = Math.max(20, E.plan.sprit - 10); this.neu(); };
+    $('plMehr').onclick = () => { E.plan.sprit = Math.min(SPRIT_MAX, E.plan.sprit + 10); this.neu(); };
     $('plLos').onclick = () => { const p = this.plan(); if (rechne(p, WETTER[E.wetter]).ok) { this.zu(); wennLos(p); } };
     $('plZurueck').onclick = () => { this.zu(); wennZu(); };
     window.addEventListener('resize', () => { if (this.an) this.maleKarte(); });
   }
-  plan() { const P = this.E.plan; return { punkte: P.ids.map(punktVon), hoehe: P.hoehe, sprit: P.sprit }; }
+  // Beginnt der Flug am geparkten Flugzeug, zählt der echte Tank – getankt wird dann beim Außencheck, nicht im Planer
+  get park() { return this.E.reiseStart !== 'bahn'; }
+  plan() { const P = this.E.plan; return { punkte: P.ids.map(punktVon), hoehe: P.hoehe, sprit: this.park ? Infinity : P.sprit }; }
   passe() { const p = this.plan().punkte; this.karte.passe(p.length > 1 ? p : PLAETZE.map(P => ({ x: P.mx, z: P.mz })), p.length > 1 ? 9000 : 12000); }
   auf() { this.an = true; $('planer').classList.add('an'); this.neu(true); }
   zu() { this.an = false; $('planer').classList.remove('an'); }
@@ -81,20 +85,37 @@ export class Planer {
       const x = document.createElement('button'); x.className = 'klein'; x.textContent = '✕'; x.title = 'aus dem Plan nehmen'; x.onclick = () => { P.ids.splice(i, 1); if (!P.ids.length) P.ids = ['lerchenfeld']; this.neu(); }; d.appendChild(x);
       liste.appendChild(d);
     });
-    $('plHoehe').textContent = `${P.hoehe} ft`; $('plSprit').textContent = `${P.sprit} Liter`;
+    $('plHoehe').textContent = `${P.hoehe} ft`; $('plSprit').textContent = this.park ? `Tank: ${this.tank()} Liter` : `${P.sprit} Liter`;
+    $('plWeniger').style.display = $('plMehr').style.display = this.park ? 'none' : '';
+    // Wie viel das Navi verrät und wo der Flug beginnt
+    const knoepfe = (id, liste, schluessel) => {
+      const k = $(id); k.innerHTML = '';
+      for (const [key, name] of Object.entries(liste)) { const b = document.createElement('button'); b.textContent = name.split(':')[0]; b.className = E[schluessel] === key ? 'an' : ''; b.onclick = () => { E[schluessel] = key; this.neu(); }; k.appendChild(b); }
+    };
+    if (!NAVI_STUFEN[E.navi]) E.navi = 'leicht';
+    knoepfe('plNavi', NAVI_STUFEN, 'navi'); $('plNaviText').textContent = NAVI_STUFEN[E.navi].split(': ')[1] + '.';
+    knoepfe('plStart', { park: 'Am geparkten Flugzeug', bahn: 'Gleich auf der Bahn' }, 'reiseStart');
+    if (!this.park) E.reiseStart = 'bahn';
+    $('plStartText').textContent = this.park ? 'Der ganze Flug: Außencheck, tanken, Checklisten, anlassen, zur Bahn rollen – und am Ziel abstellen und das Flugbuch schreiben.' : 'Schnellstart: Das Flugzeug steht mit laufendem Motor auf der Bahn, der Sprit kommt aus dem Planer.';
     const w = $('plWetter'); w.innerHTML = '';
-    for (const [key, W] of Object.entries(WETTER)) { const b = document.createElement('button'); b.textContent = W.name.replace(' von vorn', '').replace(' von links', '').replace(' von rechts', ''); b.className = E.wetter === key ? 'an' : ''; b.onclick = () => { E.wetter = key; this.neu(); }; w.appendChild(b); }
+    for (const [key, W] of Object.entries(WETTER)) { const b = document.createElement('button'); b.textContent = W.name.replace(' von vorn', '').replace(' von links', '').replace(' von rechts', '');
+      b.className = E.wetter === key ? 'an' : ''; b.onclick = () => { E.wetter = key; this.neu(); }; w.appendChild(b); }
     const beine = $('plBeine'); beine.innerHTML = '';
     for (const b of R.beine) {
       const d = document.createElement('div'); d.innerHTML = '<b></b><b></b><span></span>';
       d.children[0].textContent = `${b.von.name} → ${b.nach.name}`; d.children[1].textContent = `Kurs ${grad3(b.steuer)}°`;
-      d.children[2].textContent = `${b.strecke.toFixed(0)} NM · ${Math.round(b.min)} min · ${Math.round(b.liter)} Liter` + (Math.abs(b.vor) > 1.5 * GRAD ? ` · Linie ${grad3(b.kurs)}°, ${Math.round(Math.abs(b.vor) / GRAD)}° gegen den Wind vorhalten` : '') + ` · höchstes Gelände ${Math.round(b.hoch / 100) * 100} ft`;
+      d.children[2].textContent = `${b.strecke.toFixed(0)} NM · ${Math.round(b.min)} min · ${Math.round(b.liter)} Liter`
+        + (Math.abs(b.vor) > 1.5 * GRAD ? ` · Linie ${grad3(b.kurs)}°, ${Math.round(Math.abs(b.vor) / GRAD)}° gegen den Wind vorhalten` : '') + ` · höchstes Gelände ${Math.round(b.hoch / 100) * 100} ft`;
       beine.appendChild(d);
     }
-    $('plSumme').textContent = R.beine.length ? `Zusammen ${R.weit.toFixed(0)} NM in etwa ${Math.round(R.zeit)} Minuten bei ${REISE.tempo} kn. Sprit: ${Math.ceil(R.liter)} Liter, mit ${REISE.reserve} Minuten Reserve ${Math.ceil(R.noetig)} Liter. Mindesthöhe ${R.mindest} ft.` : '';
+    $('plSumme').textContent = !R.beine.length ? '' : `Zusammen ${R.weit.toFixed(0)} NM in etwa ${Math.round(R.zeit)} Minuten: ${Math.round(R.zeitBeine)} Minuten Strecke, dazu Steigflug und ${REISE.anflug} Minuten Anflug. `
+      + `Reise mit ${REISE.tempo} kn auf dem Fahrtmesser (in ${P.hoehe} ft sind das in Wahrheit ${Math.round(R.tas)} kn). `
+      + `Sprit: ${Math.ceil(R.liter)} Liter, mit ${REISE.reserve} Minuten Reserve ${Math.ceil(R.noetig)} Liter. Mindesthöhe ${R.mindest} ft.`;
     const h = $('plHinweise'); h.innerHTML = '';
-    for (const x of R.hinweise) { const d = document.createElement('div'); d.className = x.art; d.textContent = x.text; h.appendChild(d); }
-    if (!R.hinweise.length) { const d = document.createElement('div'); d.className = 'gut'; d.textContent = 'Der Plan passt. Merk dir den Kurs für das erste Bein – oder schau im Flug auf die Karte (Taste M).'; h.appendChild(d); }
+    const hinweise = [...R.hinweise];
+    if (this.park && R.beine.length && this.tank() < R.noetig) hinweise.push({ art: 'warn', text: `Im Tank sind nur ${this.tank()} Liter. Beim Außencheck am linken Flügel tanken: mindestens ${Math.ceil(R.noetig)} Liter.` });
+    for (const x of hinweise) { const d = document.createElement('div'); d.className = x.art; d.textContent = x.text; h.appendChild(d); }
+    if (!hinweise.length) { const d = document.createElement('div'); d.className = 'gut'; d.textContent = 'Der Plan passt. Merk dir den Kurs für das erste Bein – oder schau im Flug auf die Karte (Taste M).'; h.appendChild(d); }
     $('plLos').disabled = !R.ok;
   }
 }

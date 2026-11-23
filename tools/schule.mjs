@@ -116,7 +116,8 @@ for (const l of imKnoten ? LEKTIONEN : []) {
   const e = u.ergebnis || { geschafft: false, sterne: 0, fehler: ['Zeit abgelaufen in Schritt ' + u.nr + ': ' + u.aufgabe], zeit: t };
   const ok = e.geschafft && e.sterne >= 2;
   if (!ok) schlecht++;
-  console.log(`${ok ? '  ok ' : 'FALSCH'}  ${l.name.padEnd(30)} ${'★'.repeat(e.sterne).padEnd(3)}  ${Math.round(e.zeit).toString().padStart(4)} s  ${e.note ? 'Landung ' + e.note.sterne + '★ (' + e.note.sink + ' ft/min)  ' : ''}${f.bruch ? 'BRUCH ' + f.bruch + '  ' : ''}${gras > 1 ? 'im Gras ' + gras.toFixed(0) + ' s  ' : ''}${e.fehler.length ? 'Ermahnungen: ' + e.fehler.join(' | ') : ''}`);
+  console.log(`${ok ? '  ok ' : 'FALSCH'}  ${l.name.padEnd(30)} ${'★'.repeat(e.sterne).padEnd(3)}  ${Math.round(e.zeit).toString().padStart(4)} s  `
+    + `${e.note ? 'Landung ' + e.note.sterne + '★ (' + e.note.sink + ' ft/min)  ' : ''}${f.bruch ? 'BRUCH ' + f.bruch + '  ' : ''}${gras > 1 ? 'im Gras ' + gras.toFixed(0) + ' s  ' : ''}${e.fehler.length ? 'Ermahnungen: ' + e.fehler.join(' | ') : ''}`);
 }
 if (imKnoten) console.log(schlecht ? `\n${schlecht} Lektion(en) schafft der künstliche Pilot nicht mit zwei Sternen.` : '\nAlle Lektionen sind zu schaffen.');
 if (imKnoten) process.exit(schlecht ? 1 : 0);

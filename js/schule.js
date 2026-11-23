@@ -135,7 +135,8 @@ export const LEKTIONEN = [
     schritte: [
       { sag: 'Die Landung. Wir sind 4 Kilometer vor der Bahn, die Klappen sind auf 20 Grad. Flieg durch die Tore. Halte 65 bis 70 Knoten: Ist der Fahrtmesser zu hoch, Nase etwas höher. Sind die Lichter neben der Bahn alle rot, sind wir zu tief, dann mehr Gas.',
         aufgabe: 'Durch die Tore: 65–70 kn, zwei weiße und zwei rote Lichter', fertig: f => fuss(f) < 200,
-        fehler: (f, z) => { const w = anflug(f.p, 36).winkel / GRAD; return kn(f) < 56 ? 'Zu langsam! Nase runter und etwas Gas.' : kn(f) > 82 ? 'Zu schnell. Gas zurück, Nase etwas höher.' : w < 2.2 ? 'Zu tief – alle Lichter rot. Mehr Gas!' : w > 4.2 ? 'Zu hoch – alle Lichter weiß. Gas zurück.' : null; } },
+        fehler: (f, z) => { const w = anflug(f.p, 36).winkel / GRAD;
+          return kn(f) < 56 ? 'Zu langsam! Nase runter und etwas Gas.' : kn(f) > 82 ? 'Zu schnell. Gas zurück, Nase etwas höher.' : w < 2.2 ? 'Zu tief – alle Lichter rot. Mehr Gas!' : w > 4.2 ? 'Zu hoch – alle Lichter weiß. Gas zurück.' : null; } },
       { sag: 'Sieht gut aus. Über dem Bahnanfang nimmst du das Gas ganz raus. Kurz über dem Boden die Nase langsam hochnehmen und das Flugzeug ausschweben lassen.',
         aufgabe: 'Über der Schwelle Gas raus, kurz über dem Boden sanft abfangen', fertig: (f, z) => z.flug.landungen > z.landungen0 },
       { sag: 'Wir sind unten. Mittellinie halten und bremsen.',

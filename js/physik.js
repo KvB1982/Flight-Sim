@@ -40,6 +40,7 @@ export function lageAus(kurs, nick, roll) {
 }
 
 // Luftdichte in der Höhe h (Meter über dem Meer): Oben ist die Luft dünner, Flügel und Motor leisten weniger.
+// Beim Überlandflug steht in f.nn, wie hoch die Spiel-Höhe 0 über dem Meer liegt (700 m) – dann zählt die echte Höhe.
 export const dichte = h => RHO0 * Math.pow(Math.max(0.3, 1 - 2.2558e-5 * h), 4.2559);
 
 // ---------------------------------------------------------------- ein neues Flugzeug
@@ -113,7 +114,7 @@ export function schritt(f, e, dt, welt) {
   const wind = welt.wind(f.p, f.t);
   const vl = dreheZurueck(q, [f.v[0] - wind[0], f.v[1] - wind[1], f.v[2] - wind[2]]);     // Fahrt durch die Luft, vom Flugzeug aus gesehen
   const V = Math.max(0.01, Math.hypot(vl[0], vl[1], vl[2]));
-  const rho = dichte(f.p[1]), stau = 0.5 * rho * V * V;          // Staudruck: so fest „drückt“ die Luft
+  const rho = dichte(f.p[1] + (f.nn || 0)), stau = 0.5 * rho * V * V;          // Staudruck: so fest „drückt“ die Luft
   const alpha = V > 1 ? Math.atan2(-vl[1], Math.max(0.01, vl[2])) : 0;
   const beta = V > 1 ? Math.asin(clamp(-vl[0] / V, -1, 1)) : 0;   // Schiebewinkel: + = Luft kommt von rechts
   // Wie schnell ändert sich der Anstellwinkel? Das Höhenleitwerk merkt es etwas später als der Flügel und bremst so das Nicken.

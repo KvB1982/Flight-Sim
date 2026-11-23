@@ -8,7 +8,7 @@
 // Drei Arten zu spielen (MODI): hilfe = das Spiel macht jeden Punkt und erklärt ihn, gefuehrt = Liste zum Abhaken,
 // selbst = die Liste ist zugeklappt und wird nur bewertet.
 import { KN, FT } from './flugzeuge.js';
-import { PLATZ } from './platz.js';
+import { naechsterPlatz, platzLokal } from './region.js';
 import { SCHALTER, schalte, anlassen, tanke, liter } from './systeme.js';
 
 export const MODI = { hilfe: 'Mit Hilfe: Das Spiel macht jeden Handgriff und erklärt ihn', gefuehrt: 'Geführt: Checkliste zum Abhaken', selbst: 'Selbst: Die Checkliste ist zu und wird nur bewertet' };
@@ -17,12 +17,19 @@ const kn = f => f.ias / KN, fuss = f => f.hoeheGrund / FT, tempoBoden = f => Mat
 // Ein Punkt, der nur einen Schalter stellt
 const sch = (id, wert, text) => { const d = SCHALTER.find(x => x.id === id); return { id, text: text || `${d.name} ${wert ? d.an : d.aus}`, ok: (f, s) => s[id] === wert, tu: f => { schalte(f, id, wert); }, tipp: true, grund: d.grund }; };
 const START_TRIMM = -0.35;
+// Wo steht das Flugzeug am nächsten Flugplatz? lx = Meter links von der Mittellinie, lz = Meter hinter dem Bahnanfang
+const amPlatz = f => { const P = naechsterPlatz(f.p[0], f.p[2]).platz, [lx, lz] = platzLokal(P, f.p[0], f.p[2]); return { P, lx, lz, nebenBahn: Math.abs(lx) > P.breit / 2 + 5, geparkt: Math.hypot(lx - P.vorfeld.x, lz - P.vorfeld.z) < 70 }; };
 
 export const PHASEN = [
   {
     id: 'aussen', name: 'Außencheck', wo: 'Geh einmal um das Flugzeug und schau dir alles an.',
     punkte: [
-      { id: 'tank', text: 'In den Tank schauen: genug Benzin?', ok: (f, s) => s.geprueft.tank && liter(f) >= 30, tu: (f, s) => { s.geprueft.tank = true; if (liter(f) < 60) tanke(f, 100); }, grund: 'Die Tankanzeige kann sich irren. Für eine Platzrunde mit Reserve sollen mindestens 30 Liter im Tank sein.' },
+      {
+        id: 'tank', text: 'In den Tank schauen: genug Benzin?', ok: (f, s) => s.geprueft.tank && liter(f) >= s.spritSoll,
+        tu: (f, s) => { s.geprueft.tank = true; if (liter(f) < Math.max(60, s.spritSoll)) tanke(f, Math.max(100, s.spritSoll + 20)); },
+        grund: 'Die Tankanzeige kann sich irren. Im Tank muss sein, was der Flug braucht – und eine halbe Stunde Reserve dazu (für eine Platzrunde 30 Liter).'
+      },
+      { id: 'wasser', text: 'Wasserprobe am Tank: kein Wasser im Benzin', ok: (f, s) => s.geprueft.wasser && !s.wasser, tu: (f, s) => { s.geprueft.wasser = true; s.wasser = false; }, grund: 'Über Nacht kann sich Wasser im Tank sammeln. Es liegt unten und käme kurz nach dem Start im Motor an.' },
       { id: 'deckel', text: 'Beide Tankdeckel fest zu', ok: (f, s) => s.deckel && s.geprueft.deckelR, tu: (f, s) => { s.deckel = true; s.geprueft.deckelR = true; }, grund: 'Ein loser Deckel lässt im Flug das Benzin herausziehen.' },
       { id: 'oel', text: 'Ölstand prüfen', ok: (f, s) => s.geprueft.oel && !s.oelWenig, tu: (f, s) => { s.geprueft.oel = true; s.oelWenig = false; }, grund: 'Mit zu wenig Öl geht der Motor nach ein paar Minuten kaputt.' },
       sch('huelle', false, 'Staurohr-Hülle abnehmen'),
@@ -51,12 +58,18 @@ export const PHASEN = [
       { id: 'probe', text: 'Motor-Probe: mit Bremse 3 Sekunden halbes Gas', ok: (f, s) => s.motorProbe, tu: (f, s) => { s.motorProbe = true; }, grund: 'Läuft der Motor hier unrund, bleibt man am Boden.' },
       { id: 'trimm', text: 'Trimmung auf Start', ok: f => Math.abs(f.trimm - START_TRIMM) < 0.2, tu: f => { f.trimm = START_TRIMM; }, grund: 'Mit falscher Trimmung hebt das Flugzeug zu früh oder gar nicht ab.' },
       { id: 'klappenStart', text: 'Klappen 0° oder 10°', ok: f => f.klappenStufe <= 1, tu: f => { f.klappenStufe = 0; }, grund: 'Mit vollen Klappen steigt das Flugzeug kaum.' },
+      sch('hmesser', true, 'Höhenmesser einstellen (QNH)'), sch('kreisel', true, 'Kurskreisel nach dem Kompass stellen'),
       sch('vorwaerm', false), sch('lande', true)
     ]
   },
   {
     id: 'nachStart', name: 'Nach dem Start', wo: 'Steigen mit 75 kn.',
     punkte: [{ id: 'klappenEin', text: 'Klappen einfahren', ok: f => f.klappenStufe === 0, tu: f => { f.klappenStufe = 0; }, grund: 'Klappen bremsen im Steigflug.' }]
+  },
+  {
+    // Diese Liste gibt es nur beim Überlandflug: Zwischen Start und Ziel liegt der Reiseflug
+    id: 'reise', name: 'Im Reiseflug', wo: 'Kurs und Höhe halten, Wegpunkte abhaken.',
+    punkte: [sch('lande', false, 'Landelicht aus'), sch('vorwaerm', false)]
   },
   {
     id: 'landung', name: 'Vor der Landung', wo: 'Im Gegenanflug vorbereiten.',
@@ -89,6 +102,8 @@ export class Ablauf {
     this.gezaehlt = 0;               // wie viele Punkte schon bewertet sind
     this.meldungen = [];             // { text, art }
     this.hilfeZeit = 1.5; this.stehZeit = 0; this.warHoch = false; this.fertig = false; this.eintrag = null;
+    this.ueberland = false;          // true = Überlandflug: nach dem Start kommt die Liste „Im Reiseflug“
+    this.zielNah = false;            // beim Überlandflug: Der Zielplatz ist nah, jetzt die Landung vorbereiten (setzt das Spiel)
   }
   get phase() { return PHASEN[this.nr]; }
   // Stand der aktuellen Liste: [{ text, ok, tipp }]
@@ -96,8 +111,9 @@ export class Ablauf {
   // In „Geführt“: einen Punkt in der Liste antippen. Geht nur bei Schaltern.
   tippe(f, id, e) { const p = this.phase.punkte.find(x => x.id === id); if (p && p.tipp && this.modus === 'gefuehrt' && !p.ok(f, f.sys)) p.tu(f, f.sys, e); }
   // Abschnitt beenden: Was nicht erledigt ist, kommt auf den Merkzettel fürs Flugbuch
-  wechsle(f, zuId) {
-    for (const p of this.phase.punkte) { this.gezaehlt++; if (!p.ok(f, f.sys)) this.vergessen.push({ phase: this.phase.name, text: p.text, grund: p.grund }); }
+  // ohneWertung: beim Durchstarten – da hatte man für die Liste „Nach der Landung“ gar keine Zeit
+  wechsle(f, zuId, ohneWertung) {
+    if (!ohneWertung) for (const p of this.phase.punkte) { this.gezaehlt++; if (!p.ok(f, f.sys)) this.vergessen.push({ phase: this.phase.name, text: p.text, grund: p.grund }); }
     this.nr = nrVon(zuId); this.hilfeZeit = 2; this.stehZeit = 0;
     this.meldungen.push({ text: `Checkliste „${this.phase.name}“: ${this.phase.wo}`, art: 'info' });
   }
@@ -120,13 +136,13 @@ export class Ablauf {
     else if (id === 'vorAnlassen' && (alle || f.motorAn)) this.wechsle(f, 'anlassen');
     else if (id === 'anlassen' && f.motorAn && s.laufZeit > 3) this.wechsle(f, 'vorStart');
     else if (id === 'vorStart' && !f.amBoden && fuss(f) > 50) this.wechsle(f, 'nachStart');
-    else if (id === 'nachStart' && (fuss(f) > 800 || (alle && fuss(f) > 600))) { this.warHoch = true; this.wechsle(f, 'landung'); }
-    else if ((id === 'landung' || id === 'nachStart') && f.amBoden && kn(f) < 40) this.wechsle(f, 'nachLandung');
+    else if (id === 'nachStart' && (fuss(f) > 800 || (alle && fuss(f) > 600))) { this.warHoch = true; this.wechsle(f, this.ueberland && !this.zielNah ? 'reise' : 'landung'); }
+    else if (id === 'reise' && this.zielNah) this.wechsle(f, 'landung');
+    else if ((id === 'landung' || id === 'nachStart' || id === 'reise') && f.amBoden && kn(f) < 40) this.wechsle(f, 'nachLandung');
     else if (id === 'nachLandung') {
-      if (!f.amBoden && fuss(f) > 50) this.wechsle(f, 'nachStart');                 // durchgestartet: noch eine Runde
+      if (!f.amBoden && fuss(f) > 50) this.wechsle(f, 'nachStart', true);           // durchgestartet: noch eine Runde
       this.stehZeit = f.amBoden && tempoBoden(f) < 0.5 ? this.stehZeit + dt : 0;
-      const nebenBahn = Math.abs(f.p[0]) > PLATZ.breit / 2 + 5;
-      if (this.stehZeit > 2 && (nebenBahn || alle)) this.wechsle(f, 'abstellen');
+      if (this.stehZeit > 2 && (amPlatz(f).nebenBahn || alle)) this.wechsle(f, 'abstellen');
     }
   }
   // Manche Handgriffe macht auch die Hilfe erst, wenn es passt
@@ -144,12 +160,12 @@ export class Ablauf {
   ende(f, flug, datum = new Date()) {
     if (this.nr !== nrVon('abstellen') && !f.bruch) this.wechsle(f, 'abstellen');
     if (!f.bruch) for (const p of this.phase.punkte) { this.gezaehlt++; if (!p.ok(f, f.sys)) this.vergessen.push({ phase: this.phase.name, text: p.text, grund: p.grund }); }
-    const V = PLATZ.vorfeld, amPlatz = Math.hypot(f.p[0] - V.x, f.p[2] - V.z) < 70, n = this.vergessen.length;
-    const regeln = f.bruch ? 1 : Math.max(1, 5 - n - (amPlatz ? 0 : 1));
+    const geparkt = amPlatz(f).geparkt, n = this.vergessen.length;
+    const regeln = f.bruch ? 1 : Math.max(1, 5 - n - (geparkt ? 0 : 1));
     this.fertig = true;
     this.eintrag = {
       datum: datum.toISOString(), modus: this.modus, dauer: Math.round(this.t), flugZeit: Math.round(this.flugZeit), landungen: flug.landungen,
-      landung: flug.note ? flug.note.sterne : 0, landeText: flug.note ? flug.note.text : '', regeln, bruch: f.bruch || null, amPlatz,
+      landung: flug.note ? flug.note.sterne : 0, landeText: flug.note ? flug.note.text : '', regeln, bruch: f.bruch || null, amPlatz: geparkt,
       vergessen: this.vergessen, sprit: liter(f), batterieAn: !!f.sys.haupt
     };
     return this.eintrag;
