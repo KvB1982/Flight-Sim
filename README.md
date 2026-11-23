@@ -25,6 +25,7 @@ Steuerknüppel (im Menü „Handy als Steuerknüppel verbinden“, QR-Code mit d
 | W / S, Ziffern 1–9, 0 | Gas mehr / weniger, Gas in Zehnteln, 0 = Vollgas |
 | F / V | Klappen eine Stufe aus / ein |
 | T / G | Trimmung Nase runter / hoch |
+| Gamepad / Joystick | linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung |
 | B oder Leertaste | Bremse |
 | C | Ansicht wechseln |
 | J / L / I / K, U | Blick drehen, U = wieder geradeaus (oder mit der Maus über das Bild ziehen) |

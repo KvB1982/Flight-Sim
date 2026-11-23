@@ -22,11 +22,23 @@ export function landeNote(e) {
   if (schraeg > 8) ab(20, 'Schräg zur Bahn aufgesetzt: kurz vor dem Aufsetzen mit dem Seitenruder gerade stellen.'); else if (schraeg > 4) ab(8);
   if (roll > 8) ab(15, 'Mit hängender Fläche aufgesetzt.');
   if (e.nick < -1 * GRAD) ab(20, 'Mit dem Bugrad zuerst: Die Nase muss beim Aufsetzen leicht nach oben zeigen.');
-  if (e.ias > 68 * KN) ab(10, `Zu schnell (${Math.round(e.ias / KN)} kn).`);
+  // Ausschweben: Wer kurz über der Bahn die Nase hochnimmt, wird langsamer und setzt sanft auf den Haupträdern auf.
+  const tempo = Math.round(e.ias / KN);
+  if (tempo > 66) ab(20, `Viel zu schnell aufgesetzt (${tempo} kn). Über der Bahn Gas raus und ausschweben lassen.`);
+  else if (tempo > 58) ab(10, `Schnell aufgesetzt (${tempo} kn). Lass das Flugzeug über der Bahn ausschweben, bis es von allein sinkt.`);
+  else if (!teile.length && tempo <= 52 && e.nick > 3 * GRAD) teile.push(sink < 120 ? 'Schön ausgeschwebt und butterweich aufgesetzt!' : 'Schön ausgeschwebt: langsam und mit der Nase oben aufgesetzt.');
   const sterne = Math.max(1, Math.min(5, Math.round(punkte / 20)));
   if (!teile.length) teile.push(sink < 120 ? 'Butterweich und mitten auf der Bahn!' : 'Saubere Landung.');
   return { sterne, punkte: Math.max(0, punkte), sink, quer, laengs: a.laengs, aufBahn, text: teile.join(' ') };
 }
+
+// Was bei welchem Bruch passiert ist
+export const BRUCH_TEXT = {
+  Fahrwerk: 'Viel zu hart aufgesetzt, das Fahrwerk ist gebrochen.',
+  Heck: 'Das Heck ist hart auf die Bahn geschlagen.',
+  'Überlast': 'Zu hart am Knüppel gerissen: Die Flügel haben das nicht ausgehalten. Bei viel Fahrt nur sanft ziehen.',
+  Tempo: 'Viel zu schnell: Über der roten Marke am Fahrtmesser hält das Flugzeug nicht.'
+};
 
 export class Flug {
   constructor() { this.meldungen = []; this.note = null; this.gelandet = false; this.warnZeit = 0; this.landungen = 0; this.ansage = 999; }
@@ -35,11 +47,12 @@ export class Flug {
   schritt(f, dt) {
     this.warnZeit -= dt;
     for (const e of f.ereignisse.splice(0)) {
+      if (e.art === 'heck') { this.heck = (this.heck || 0) + 1; if (!f.bruch) this.sag('Das Heck hat die Bahn berührt! Nicht so steil ziehen.', 'warn'); continue; }
       if (e.art !== 'aufsetzen' || e.flugZeit < 3) continue;       // kleine Hüpfer zählen nicht als neue Landung
       this.note = landeNote(e); this.landungen++; this.gelandet = true;
       this.sag('★'.repeat(this.note.sterne) + '☆'.repeat(5 - this.note.sterne) + '  ' + this.note.text, this.note.sterne >= 4 ? 'gut' : 'warn');
     }
-    if (f.bruch && !this.bruchGemeldet) { this.bruchGemeldet = true; this.sag(`Bruch! ${f.bruch === 'Fahrwerk' ? 'Viel zu hart aufgesetzt, das Fahrwerk ist gebrochen.' : f.bruch + ' hat den Boden berührt.'} Taste N oder „Neu“ für einen neuen Versuch.`, 'schlimm'); }
+    if (f.bruch && !this.bruchGemeldet) { this.bruchGemeldet = true; this.sag(`Bruch! ${BRUCH_TEXT[f.bruch] || f.bruch + ' hat den Boden berührt.'} Taste N oder „Neu“ für einen neuen Versuch.`, 'schlimm'); }
     if (!f.amBoden && f.hoeheGrund > 30) this.gelandet = false;
     if (this.warnZeit <= 0 && !f.bruch) {
       const v = f.T.v;

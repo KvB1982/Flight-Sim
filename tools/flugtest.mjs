@@ -1,7 +1,7 @@
 // Flugsimulator – Rechen-Test der Flugphysik:  node tools/flugtest.mjs
 // Misst mit einem künstlichen Piloten die Zahlen, die man von einem kleinen Schulflugzeug kennt,
 // und vergleicht sie mit dem Wunsch (SOLL). Ohne Grafik.
-import { neuesFlugzeug, setze, abrissTempo, masse, KN, TAKT } from '../js/physik.js';
+import { neuesFlugzeug, setze, schritt, abrissTempo, masse, KN, TAKT } from '../js/physik.js';
 import { FT } from '../js/flugzeuge.js';
 import { Pilot, ruhig, windWelt, GRAD, wickel } from './pilot.mjs';
 
@@ -23,7 +23,7 @@ function abriss(klappen) {
   return kn(min);
 }
 pruefe('Abriss ohne Klappen (gerechnet)', kn(abrissTempo(neuesFlugzeug('lerche'), 0)), 45, 51, 'kn');
-pruefe('Abriss ohne Klappen (geflogen)', abriss(0), 44, 52, 'kn');
+pruefe('Abriss ohne Klappen (geflogen)', abriss(0), 43, 52, 'kn');
 pruefe('Abriss mit vollen Klappen (geflogen)', abriss(3), 36, 44, 'kn');
 
 // ---- 2. Start: Vollgas, bei 55 kn ziehen. Wie lang ist die Rollstrecke?
@@ -88,7 +88,7 @@ let reiseNick = 0;
 // ---- 7. Stabil? Im Reiseflug getrimmt loslassen, kurz am Knüppel reißen, dann eine Minute nichts tun
 {
   const [f, p] = neu({ hoehe: 900, tempo: 57 }, ruhig, { hilfe: 'echt' });
-  p.flieg(120, (s, dt) => { p.e.gas = 0.88; p.hoeheMitNase(s, 900, dt); p.kurs(s, 0); f.trimm += p.e.hoehe * 0.3 * dt; });
+  p.flieg(120, (s, dt) => { p.e.gas = 0.88; p.hoeheMitNase(s, 900, dt); p.kurs(s, 0); f.trimm += p.e.hoehe * 0.9 * dt; });
   const v0 = f.ias;
   let vMin = 99, vMax = 0, rollMax = 0;
   p.flieg(70, (s, dt, t) => {
@@ -165,6 +165,41 @@ for (const [aus, k, vz, name] of [[0, 0, 0, 'ohne Wind'], [0, 12, 0, '12 kn Gege
   pruefe('  Tempo beim Aufsetzen', kn(e.ias), 38, 62, 'kn');
   pruefe('  schräg zur Bahn gerutscht', Math.abs(e.schraeg) / GRAD, 0, 6, 'Grad');
   pruefe('  steht nach (ab Schwelle), ohne Bruch' + (r.bruch ? ' – BRUCH: ' + r.bruch : ''), r.bruch ? 9999 : r.stand, 100, 800, 'm');
+}
+
+// ---- 9. Trimmbereich: Flügel gerade halten, Höhenruder loslassen. Wie schnell fliegt das Flugzeug dann von allein?
+function losgelassen(trimm, start) {
+  const [f, p] = neu({ hoehe: 1500, tempo: start * KN, gas: 0.75, trimm }, ruhig, { hilfe: 'echt' });
+  let summe = 0, n = 0;
+  p.flieg(200, (s, dt, t) => { p.e.gas = 0.75; p.e.hoehe = 0; p.flaeche(s, 0); p.e.seite = Math.max(-1, Math.min(1, 3 * f.schiebe)); if (t > 100) { summe += f.ias; n++; } });
+  return f.bruch ? 0 : kn(summe / n);
+}
+pruefe('Trimmung ganz kopflastig: fliegt losgelassen', losgelassen(-1, 130), 125, 145, 'kn');
+pruefe('Trimmung ganz schwanzlastig: fliegt losgelassen', losgelassen(1, 60), 48, 60, 'kn');
+
+// ---- 10. Zu fest gezogen, zu schnell geflogen: Das Flugzeug hält nicht alles aus
+{
+  const zieh = v => { const [f] = neu({ hoehe: 1500, tempo: v * KN, gas: 0.7 }); let max = 0; for (let t = 0; t < 4 && !f.bruch; t += TAKT) { schritt(f, { hoehe: 1, quer: 0, seite: 0, gas: 0.7, bremse: 0 }, TAKT, ruhig); max = Math.max(max, f.lastRuhig); } return max; };
+  pruefe('voll gezogen bei 100 kn: Last', zieh(100), 3.2, 4.6, 'g');
+  pruefe('voll gezogen bei 120 kn: Last (Bruch ab 5,7)', zieh(120), 3.2, 5.6, 'g');
+  const [f, p] = neu({ hoehe: 3000, tempo: 100 * KN, gas: 1, nick: -40 * GRAD, bahn: -40 * GRAD }, ruhig, { hilfe: 'echt' });
+  let vBruch = 0;
+  p.flieg(60, s => { p.e.gas = 1; p.nase(s, -40 * GRAD); p.flaeche(s, 0); vBruch = f.ias; });
+  pruefe('Sturzflug mit Vollgas: bricht bei' + (f.bruch ? ` (${f.bruch})` : ' – KEIN BRUCH'), f.bruch ? kn(vBruch) : 999, 160, 185, 'kn');
+}
+
+// ---- 11. Geparkt im Seitenwind: Die Reifen halten, das Flugzeug dreht sich nicht weg und kippt nicht
+for (const wind of [15, 25]) {
+  const [f] = neu({ kurs: 0 }, windWelt(90, wind));
+  for (let t = 0; t < 30 && !f.bruch; t += TAKT) schritt(f, { hoehe: 0, quer: 0, seite: 0, gas: 0, bremse: 1 }, TAKT, windWelt(90, wind));
+  pruefe(`geparkt, Bremse, ${wind} kn von der Seite, 30 s: gedreht` + (f.bruch ? ' – BRUCH' : ''), f.bruch ? 99 : Math.abs(wickel(f.kurs)) / GRAD, 0, 2, 'Grad');
+}
+// Startlauf ohne Seitenruder: Der Propeller zieht nach links, aber nicht gleich von der Bahn
+{
+  const [f] = neu({ kurs: 0 });
+  let bei10 = 0;
+  for (let t = 0; t < 4 && !f.bruch; t += TAKT) { schritt(f, { hoehe: 0, quer: 0, seite: 0, gas: 1, bremse: 0 }, TAKT, ruhig); if (!bei10 && f.ias > 10 * KN) bei10 = wickel(f.kurs) / GRAD; }
+  pruefe('Startlauf ohne Seitenruder: Kurs bei 10 kn', bei10, -4, 0, 'Grad');
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

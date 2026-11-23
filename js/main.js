@@ -314,8 +314,8 @@ function bild(sek, ohneBild) {
   let e = eingabe.schritt(sek);
   // Zu Fuß: Die Tasten und der Knüppel bewegen den Menschen, das Flugzeug bleibt stehen
   if (geher && !pause) {
-    const vor = (eingabe.unten('ArrowUp', 'KeyW') ? 1 : 0) - (eingabe.unten('ArrowDown', 'KeyS') ? 1 : 0) + (eingabe.stick.an ? eingabe.stick.y : 0);
-    const dreh = (eingabe.unten('ArrowRight', 'KeyD', 'KeyE') ? 1 : 0) - (eingabe.unten('ArrowLeft', 'KeyA', 'KeyQ') ? 1 : 0) + (eingabe.stick.an ? eingabe.stick.x : 0) + eingabe.pedal;
+    const vor = (eingabe.unten('ArrowUp', 'KeyW') ? 1 : 0) - (eingabe.unten('ArrowDown', 'KeyS') ? 1 : 0) + (eingabe.stick.an ? eingabe.stick.y : 0) - (eingabe.pad ? eingabe.pad.hoehe : 0);
+    const dreh = (eingabe.unten('ArrowRight', 'KeyD', 'KeyE') ? 1 : 0) - (eingabe.unten('ArrowLeft', 'KeyA', 'KeyQ') ? 1 : 0) + (eingabe.stick.an ? eingabe.stick.x : 0) + eingabe.pedal + (eingabe.pad ? eingabe.pad.quer + eingabe.pad.seite : 0);
     geher.schritt(f, Math.max(-1, Math.min(1, vor)), Math.max(-1, Math.min(1, dreh)), sek);
     eingabe.e.gas = 0; e = { hoehe: 0, quer: 0, seite: 0, gas: 0, bremse: 1 };
   }
@@ -342,9 +342,27 @@ function bild(sek, ohneBild) {
   infoZeit -= sek;
   if (infoZeit <= 0 && empfang.verbunden) { infoZeit = 0.1; empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2) }); }
 }
+// Tempo-Wächter (abgeschaut vom Rennspiel): Dauert ein Bild im Schnitt länger als 1/48 Sekunde, malt das Spiel die Welt mit
+// weniger Bildpunkten. Läuft es etwa sechs Sekunden ruhig, versucht es wieder mehr – aber nie die Stufe, die schon zu langsam war.
+// Die Instrumente bleiben immer scharf. `?scharf` in der Adresse schaltet den Wächter ab.
+const SCHARF = { an: !new URLSearchParams(location.search).has('scharf'), voll: Math.min(window.devicePixelRatio || 1, 2), jetzt: 0, zuLangsam: Infinity, schnitt: 1 / 60, ruhig: 0, warte: 2 };
+SCHARF.jetzt = SCHARF.voll;
+function tempoPruefen(sek) {
+  if (!SCHARF.an || sek <= 0 || pause || imMenue) return;
+  SCHARF.schnitt += (sek - SCHARF.schnitt) * 0.05;
+  if ((SCHARF.warte -= sek) > 0) return;                              // nach jedem Umschalten kurz abwarten
+  const stelle = neu => { SCHARF.jetzt = neu; welt.renderer.setPixelRatio(neu); SCHARF.warte = 2; SCHARF.ruhig = 0; SCHARF.schnitt = 1 / 60; };
+  if (SCHARF.schnitt > 1 / 48) {
+    SCHARF.zuLangsam = SCHARF.jetzt;
+    if (SCHARF.jetzt > 0.75) stelle(Math.max(0.75, SCHARF.jetzt - 0.25));
+  } else if (SCHARF.schnitt < 1 / 56) {
+    SCHARF.ruhig += sek;
+    if (SCHARF.ruhig > 6 && SCHARF.jetzt + 0.25 <= SCHARF.voll && SCHARF.jetzt + 0.25 < SCHARF.zuLangsam) stelle(SCHARF.jetzt + 0.25);
+  } else SCHARF.ruhig = 0;
+}
 function schleife(t) {
   const sek = Math.min(0.1, (t - zuletzt) / 1000 || 0); zuletzt = t;
-  if (!window.__flugsim.angehalten) bild(sek);
+  if (!window.__flugsim.angehalten) { bild(sek); tempoPruefen(sek); }
   requestAnimationFrame(schleife);
 }
 
@@ -429,7 +447,7 @@ const touch = istTouch ? baueTouch(eingabe, { brett: () => eingabe.druecke('bret
 document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
-window.__flugsim = { f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
+window.__flugsim = { scharf: SCHARF, tempoPruefen, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
 else if (frage.has('ganz')) { if (MODI[frage.get('ganz')]) E.liste = frage.get('ganz'); los('ganz'); }

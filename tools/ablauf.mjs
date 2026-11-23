@@ -89,7 +89,7 @@ function ganzerFlug(modus) {
   if (selbst) {
     for (const [h, q] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0, 0]]) { p.e.hoehe = h; p.e.quer = q; warte(f, p, flug, ablauf, 0.6); }
     p.e.bremse = 1; p.e.gas = 0.55; warte(f, p, flug, ablauf, 5, () => s.motorProbe); p.e.gas = 0; warte(f, p, flug, ablauf, 1.5);
-    f.trimm = 0.15; schalte(f, 'lande', true);
+    f.trimm = -0.3; schalte(f, 'lande', true);
   } else warte(f, p, flug, ablauf, 30, () => ablauf.liste(f).every(x => x.ok));
   pruefe(`${modus}: „Vor dem Start“ vollständig`, ablauf.liste(f).every(x => x.ok), ablauf.liste(f).filter(x => !x.ok).map(x => x.text).join(', '));
   // 4. die Platzrunde: Der Pilot der Lektion 7 fliegt, der Unterricht läuft nur mit, damit er weiß, wo er ist

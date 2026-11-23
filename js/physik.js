@@ -51,7 +51,8 @@ export function neuesFlugzeug(art = 'lerche', opt = {}) {
     sprit: opt.sprit ?? T.tank * 0.6, zuladung: opt.zuladung ?? T.zuladung,
     gas: 0, motorAn: true, klappen: 0, klappenStufe: 0, trimm: 0,
     ruder: { hoehe: 0, quer: 0, seite: 0 }, bremse: 0,
-    t: 0, luftZeit: 0, bodenZeit: 0, amBoden: false, rad: [0, 0, 0], bruch: null,
+    t: 0, luftZeit: 0, bodenZeit: 0, amBoden: false, rad: [0, 0, 0], radQuer: [0, 0, 0], radLang: [0, 0, 0], bruch: null,
+    alphaTempo: 0, lastRuhig: 1, zuSchnell: 0, heckAuf: false,
     ereignisse: [],                                                 // was passiert ist (Aufsetzen, harte Landung …), liest flug.js
     // Anzeigen, nach jedem Schritt neu gerechnet
     ias: 0, tas: 0, alpha: 0, schiebe: 0, abriss: 0, steig: 0, last: 1, hoeheGrund: 0, drehzahl: T.leerlauf, schub: 0,
@@ -69,6 +70,7 @@ export function setze(f, o) {
   f.v = [-Math.sin(k) * Math.cos(bahn) * tempo, Math.sin(bahn) * tempo, Math.cos(k) * Math.cos(bahn) * tempo];
   f.p = [o.x ?? 0, o.hoehe !== undefined ? o.hoehe : boden - f.T.raeder[1].ort[1] - 0.07, o.z ?? 0];
   f.w = [0, 0, 0]; f.bruch = null; f.ereignisse.length = 0;
+  f.radQuer = [0, 0, 0]; f.radLang = [0, 0, 0]; f.alphaTempo = 0; f.lastRuhig = 1; f.zuSchnell = 0; f.heckAuf = false; f.alpha = 0;
   f.amBoden = o.hoehe === undefined; f.luftZeit = f.amBoden ? 0 : 5; f.bodenZeit = f.amBoden ? 5 : 0;
   f.gas = o.gas ?? 0; f.trimm = o.trimm ?? 0; f.klappenStufe = o.klappen ?? 0; f.klappen = f.T.klappen[f.klappenStufe] / 30;
   f.ias = f.tas = tempo;
@@ -114,6 +116,8 @@ export function schritt(f, e, dt, welt) {
   const rho = dichte(f.p[1]), stau = 0.5 * rho * V * V;          // Staudruck: so fest „drückt“ die Luft
   const alpha = V > 1 ? Math.atan2(-vl[1], Math.max(0.01, vl[2])) : 0;
   const beta = V > 1 ? Math.asin(clamp(-vl[0] / V, -1, 1)) : 0;   // Schiebewinkel: + = Luft kommt von rechts
+  // Wie schnell ändert sich der Anstellwinkel? Das Höhenleitwerk merkt es etwas später als der Flügel und bremst so das Nicken.
+  f.alphaTempo += (clamp(V > 10 ? (alpha - f.alpha) / dt : 0, -1.5, 1.5) - f.alphaTempo) * Math.min(1, dt / 0.04);
   const boden = welt.boden(f.p[0], f.p[2]);
   const hRad = f.p[1] + T.raeder[1].ort[1] - boden;              // Höhe der Räder über dem Boden
   // Bodeneffekt: Dicht über der Bahn bremst der Flügel weniger, das Flugzeug „schwebt“
@@ -122,12 +126,21 @@ export function schritt(f, e, dt, welt) {
 
   // Drehtempo in den üblichen Flieger-Größen: p = rollen nach rechts, qq = Nase hoch, r = Nase nach rechts
   const p = f.w[2], qq = -f.w[0], r = -f.w[1];
-  const pb = p * T.spann / (2 * V), rb = r * T.spann / (2 * V), qc = qq * T.tiefe / (2 * V);
-  const dh = f.ruder.hoehe * T.ruderMax.hoehe + f.trimm * T.trimmMax, dq = f.ruder.quer * T.ruderMax.quer, ds = f.ruder.seite * T.ruderMax.seite;
+  // Böen von unten treffen die beiden Flügel verschieden stark: Das wirkt wie ein kleiner Stoß ums Rollen
+  const tipp = drehe(q, [T.spann * 0.35, 0, 0]);
+  const wL = welt.wind([f.p[0] + tipp[0], f.p[1] + tipp[1], f.p[2] + tipp[2]], f.t), wR = welt.wind([f.p[0] - tipp[0], f.p[1] - tipp[1], f.p[2] - tipp[2]], f.t);
+  const pLuft = p - (wL[1] - wR[1]) / (T.spann * 0.7);
+  const pb = pLuft * T.spann / (2 * V), rb = r * T.spann / (2 * V), qc = qq * T.tiefe / (2 * V);
+  const iasJetzt = Math.max(0, vl[2]) * Math.sqrt(rho / RHO0);
+  const handKraft = Math.min(1, Math.pow(T.ruderWeichAb / Math.max(1, iasJetzt), 2));       // bei viel Fahrt geht das Höhenruder nicht mehr ganz auf Anschlag
+  const dh = f.ruder.hoehe * T.ruderMax.hoehe * handKraft + T.trimmMitte + f.trimm * T.trimmWeg, dq = f.ruder.quer * T.ruderMax.quer, ds = f.ruder.seite * T.ruderMax.seite;
 
   // ---- Kräfte am Flugzeug (Körper-Richtungen)
-  const S = T.flaeche, A = stau * S * ca, W = stau * S * cw;
-  const Y = stau * S * (T.cySchiebe * beta - T.cySeite * ds);     // Seitenkraft nach rechts
+  // Kommt die Luft schräg von der Seite, zählt für den Flügel nur der Teil, der quer über ihn streicht.
+  // (Sonst würde ein geparktes Flugzeug bei Seitenwind „fliegen“ wollen und umkippen.)
+  const quer2 = (vl[1] * vl[1] + vl[2] * vl[2]) / (V * V), sB = Math.sin(beta), sB2 = sB * Math.sqrt(quer2);
+  const S = T.flaeche, A = stau * quer2 * S * ca, W = stau * quer2 * S * cw + stau * (1 - quer2) * S * T.cw0;
+  const Y = stau * S * (T.cySchiebe * sB - T.cySeite * ds);     // Seitenkraft nach rechts
   const kraft = [-Y - W * vl[0] / V, A * Math.cos(alpha) - W * vl[1] / V, A * Math.sin(alpha) - W * vl[2] / V];
   // Motor: Leistung hängt an der Drehzahl, der Propeller macht daraus Schub
   const dreh = f.motorAn && f.sprit > 0 ? T.leerlauf + (T.vollDreh - T.leerlauf) * f.gas : 0;
@@ -143,10 +156,10 @@ export function schritt(f, e, dt, welt) {
 
   // ---- Drehmomente: Stabilität (will zurück in die Strömung), Dämpfung (bremst das Drehen), Ruder
   const abrissNick = -0.35 * weg * Math.sign(alpha);              // abgerissen: Die Nase fällt
-  const cm = T.cm0 + T.cmAnstell * alpha + T.cmDreh * qc + T.cmRuder * dh * (1 - 0.4 * weg) + T.cmKlappe * f.klappen + abrissNick;
+  const cm = T.cm0 + T.cmAnstell * alpha + T.cmDreh * qc + T.cmAnstellTempo * f.alphaTempo * T.tiefe / (2 * V) + T.cmRuder * dh * (1 - 0.4 * weg) + T.cmKlappe * f.klappen + abrissNick;
   // Im Strömungsabriss dämpft der Flügel das Rollen kaum noch: Wer jetzt schiebt oder giert, kippt über eine Fläche ab
-  const cl = T.clSchiebe * beta + T.clRoll * pb * (1 - 0.75 * weg) + T.clGier * rb * (1 + 5 * weg) + T.clQuer * dq * (1 - 0.6 * weg) - T.clSeite * ds;
-  const cn = T.cnSchiebe * beta + T.cnRoll * pb + T.cnGier * rb + T.cnQuer * dq + T.cnSeite * ds;
+  const cl = T.clSchiebe * sB2 + T.clRoll * pb * (1 - 0.75 * weg) + T.clGier * rb * (1 + 5 * weg) + T.clQuer * dq * (1 - 0.6 * weg) - T.clSeite * ds;
+  const cn = T.cnSchiebe * sB + T.cnRoll * pb + T.cnGier * rb + T.cnQuer * dq + T.cnSeite * ds;
   const propGier = -schub * T.propDreh * clamp(1 - vVor / 60, 0, 1);    // Propeller zieht die Nase nach links
   // Nicken um die Querachse [0], Gieren um die Hochachse [1], Rollen um die Längsachse [2]
   const moment = [-stau * S * T.tiefe * cm, -(stau * S * T.spann * cn + propGier), stau * S * T.spann * cl];
@@ -162,7 +175,7 @@ export function schritt(f, e, dt, welt) {
     const arm = drehe(q, rad.ort), ort = [f.p[0] + arm[0], f.p[1] + arm[1], f.p[2] + arm[2]];
     const tief = welt.boden(ort[0], ort[2]) - ort[1];
     f.rad[i] = Math.max(0, tief);
-    if (tief <= 0) return;
+    if (tief <= 0) { f.radQuer[i] = f.radLang[i] = 0; return; }
     beruehrt++;
     const vr = kreuz(f.w, rad.ort), vw = drehe(q, vr), vk = [f.v[0] + vw[0], f.v[1] + vw[1], f.v[2] + vw[2]];   // Tempo des Rads über den Boden
     const N = clamp(rad.feder * tief * (1 + 4 * Math.max(0, tief - 0.25)) - rad.daempf * vk[1], 0, 9 * m * G);
@@ -173,13 +186,33 @@ export function schritt(f, e, dt, welt) {
       rv = [fv[0] * c + fl[0] * s, 0, fv[2] * c + fl[2] * s]; rl = [rv[2], 0, -rv[0]];
     }
     const vLang = mal(vk, rv), vQuer = mal(vk, rl);
-    const rollt = 0.02 + (rad.bremst ? 0.5 * f.bremse : 0);
-    const FL = -N * rollt * clamp(vLang / 0.3, -1, 1), FQ = -N * 0.85 * clamp(vQuer / 0.6, -1, 1);
+    // Der Reifen als Bürste: Die Borsten (radQuer, radLang) biegen sich, solange der Reifen hält, und ziehen ihn zurück.
+    // Rollt das Rad, richten sich die Borsten nach reifenLang Metern neu aus – deshalb zählt beim Fahren der Winkel zur
+    // Fahrtrichtung (Schräglauf), und im Stand hält der Reifen wie festgeklebt, bis die Kraft zu groß wird und er rutscht.
+    const hart = T.reifenHart * N, ruhe = T.reifenDaempf * N / (1 + vLang * vLang);
+    const haltQ = T.reifenHalt * N, haltL = N * (0.02 + (rad.bremst ? 0.5 * f.bremse : 0));
+    let zq = f.radQuer[i] + (vQuer - Math.abs(vLang) * f.radQuer[i] / T.reifenLang) * dt, zl = f.radLang[i] + vLang * dt;
+    if (hart > 1) { zq = clamp(zq, -haltQ / hart, haltQ / hart); zl = clamp(zl, -haltL / hart, haltL / hart); } else zq = zl = 0;
+    f.radQuer[i] = zq; f.radLang[i] = zl;
+    const FQ = clamp(-(hart * zq + ruhe * vQuer), -haltQ, haltQ), FL = clamp(-(hart * zl + ruhe * vLang), -haltL, haltL);
     const F = [rv[0] * FL + rl[0] * FQ, N, rv[2] * FL + rl[2] * FQ];
     kraftWelt[0] += F[0]; kraftWelt[1] += F[1]; kraftWelt[2] += F[2];
     const t = kreuz(rad.ort, dreheZurueck(q, F));
     moment[0] += t[0]; moment[1] += t[1]; moment[2] += t[2];
   });
+
+  // ---- Der Sporn unter dem Heck: Wer zu steil zieht, kratzt mit dem Heck über die Bahn. Das bremst und kostet Lack, ein harter Schlag bricht das Heck.
+  {
+    const sp = T.sporn, arm = drehe(q, sp.ort), ort = [f.p[0] + arm[0], f.p[1] + arm[1], f.p[2] + arm[2]], tief = welt.boden(ort[0], ort[2]) - ort[1];
+    if (tief > 0) {
+      const vw = drehe(q, kreuz(f.w, sp.ort)), vk = [f.v[0] + vw[0], f.v[1] + vw[1], f.v[2] + vw[2]];
+      if (!f.heckAuf) { f.heckAuf = true; f.ereignisse.push({ art: 'heck', sink: -vk[1], ias: f.ias }); if (-vk[1] > sp.bruchAb) f.bruch = 'Heck'; }
+      const N = clamp(sp.feder * tief - sp.daempf * vk[1], 0, 4 * m * G), vb = Math.hypot(vk[0], vk[2]), reib = vb > 0.05 ? -0.4 * N / vb : 0;
+      const F = [vk[0] * reib, N, vk[2] * reib];
+      kraftWelt[0] += F[0]; kraftWelt[1] += F[1]; kraftWelt[2] += F[2];
+      const t = kreuz(sp.ort, dreheZurueck(q, F)); moment[0] += t[0]; moment[1] += t[1]; moment[2] += t[2];
+    } else if (tief < -0.15) f.heckAuf = false;
+  }
 
   // ---- Aufsetzen merken: Wie hart, wie schräg, wie schnell?
   const warInLuft = !f.amBoden;
@@ -209,12 +242,19 @@ export function schritt(f, e, dt, welt) {
     f.q = qMal(q, [w[0] * s, w[1] * s, w[2] * s, Math.cos(wl * dt / 2)]);
     const n = Math.hypot(...f.q); f.q = f.q.map(x => x / n);
   }
-  // Im Stand mit Bremse wirklich stehen bleiben (sonst kriecht das Flugzeug)
-  if (beruehrt === 3 && tempoBoden < 0.15 && schub < 0.03 * m * G) { f.v[0] *= 0.8; f.v[2] *= 0.8; w[1] *= 0.8; }
 
   // ---- Anzeigen
   f.alpha = alpha; f.schiebe = beta; f.abriss = weg; f.tas = V; f.ias = Math.max(0, vl[2]) * Math.sqrt(rho / RHO0);
   f.last = (mal(kraft, [0, 1, 0]) + 0) / (m * G);                // Lastvielfaches: 1 = normales Gewicht
+  // ---- Festigkeit: Zu viel Last (zu hart gezogen oder gedrückt) oder viel zu schnell – dann bricht etwas.
+  // lastRuhig glättet ganz kurz, damit ein einzelner Rechenschritt in einer Böe noch nichts kaputt macht.
+  f.lastRuhig += (f.last - f.lastRuhig) * Math.min(1, dt / 0.08);
+  if (!f.amBoden) {
+    if (f.lastRuhig > (f.klappen > 0.05 ? T.lastMaxKlappen : T.lastMax) || f.lastRuhig < T.lastMin) f.bruch = 'Überlast';
+    // Über der roten Marke fängt das Flugzeug an zu flattern: ein paar Sekunden hält es das aus, 10 % darüber gar nicht mehr
+    f.zuSchnell = f.ias > T.v.nie * KN ? f.zuSchnell + dt : Math.max(0, f.zuSchnell - dt);
+    if (f.zuSchnell > 4 || f.ias > T.v.nie * KN * 1.1) f.bruch = 'Tempo';
+  }
   f.kugel = clamp(kraft[0] / (m * G) * 4, -1, 1);            // die Kugel im Wendezeiger: + = rechts von der Mitte
   anzeigen(f, welt);
 }

@@ -8,7 +8,7 @@ function suche(name, kn, klappen, bahnGrad, gasFest) {
   p.flieg(150, (s, dt) => {
     p.tempoMitNase(s, kn * KN, dt); p.flaeche(s, 0); p.e.seite = Math.max(-1, Math.min(1, 2.2 * f.schiebe));
     if (gasFest === undefined) { ig = Math.max(0, Math.min(1, ig + (kn * KN * Math.sin(bahnGrad * GRAD) - s.steig) * 0.02 * dt)); } p.e.gas = ig;
-    f.trimm = Math.max(-1, Math.min(1, f.trimm + p.e.hoehe * 0.4 * dt));
+    f.trimm = Math.max(-1, Math.min(1, f.trimm + p.e.hoehe * 1.2 * dt));
   });
   console.log(`${name.padEnd(34)} trimm ${f.trimm.toFixed(2)}  gas ${ig.toFixed(2)}  nick ${(f.nick / GRAD).toFixed(1)}°  steig ${(f.steig / 0.3048 * 60).toFixed(0)} ft/min  ${(f.ias / KN).toFixed(0)} kn`);
 }

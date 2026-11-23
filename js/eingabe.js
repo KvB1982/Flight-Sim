@@ -8,8 +8,11 @@ export const TASTEN_HILFE = [
   ['Q / E', 'Seitenruder links / rechts (am Boden: lenken)'], ['W / S', 'mehr Gas / weniger Gas (auch Bild↑ Bild↓, Ziffern 0–9)'],
   ['F / V', 'Klappen eine Stufe ausfahren / einfahren'], ['T / G', 'Trimmung: Nase schwerer / leichter (Shift+↑↓ geht auch)'],
   ['B oder Leertaste', 'Radbremse'], ['C', 'Ansicht wechseln'], ['J / L, I / K', 'Blick nach links / rechts, hoch / runter (im Cockpit: K = nach hinten). Außen dreht sich die Kamera ums Flugzeug, + und − = näher und weiter'], ['U', 'Blick wieder geradeaus'], ['R', 'Flugweg der Platzrunde an / aus'], ['H', 'Hilfen: leicht, mittel, echt'], ['P', 'Pause'], ['N', 'neu anfangen (Menü)'],
+  ['Gamepad / Joystick', 'linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung, Y = Ansicht'],
   ['X / Y / Enter', 'Der ganze Flug: Schalterbrett / Checkliste auf und zu / nächsten Handgriff erledigen. Zu Fuß: Pfeiltasten gehen und drehen'],
 ];
+
+const PAD_TOT = 0.08;      // so viel Spiel hat ein Gamepad-Knüppel um die Mitte
 
 export class Eingabe {
   constructor() {
@@ -42,6 +45,28 @@ export class Eingabe {
       else this.druecke(m.a);
     }
   }
+  // Gamepad oder Joystick (alles, was der Browser als „Gamepad“ meldet). Belegung wie bei den meisten Controllern:
+  //   linker Knüppel = Höhen- und Querruder, rechter Knüppel links/rechts = Seitenruder (nur bei Geräten mit der
+  //   Standard-Belegung: Bei vielen Joysticks liegt auf dieser Achse der Schubhebel, das wäre dauerndes Seitenruder),
+  //   rechter Abzug = mehr Gas, linker Abzug = weniger Gas, A = Bremse, LB/RB = Klappen ein/aus,
+  //   Steuerkreuz hoch/runter = Trimmung, Y = Kamera, Start = Pause
+  padLesen(dt) {
+    const liste = navigator.getGamepads ? navigator.getGamepads() : [];
+    let pad = null;
+    for (const p of liste) if (p && p.connected && p.axes.length >= 2) { pad = p; break; }
+    if (!pad) { this.padAlt = null; return null; }
+    const tot = v => { const a = Math.abs(v || 0); return a < PAD_TOT ? 0 : Math.sign(v) * (a - PAD_TOT) / (1 - PAD_TOT); };   // kleine tote Mitte, sonst wackelt es
+    const b = n => pad.buttons[n] ? pad.buttons[n].value || (pad.buttons[n].pressed ? 1 : 0) : 0;
+    const g = { quer: tot(pad.axes[0]), hoehe: tot(pad.axes[1]), seite: pad.mapping === 'standard' ? tot(pad.axes[2]) : 0, bremse: b(0), trimm: b(13) - b(12), benutzt: false };
+    const gasTempo = b(7) - b(6);
+    if (gasTempo) this.e.gas = clamp(this.e.gas + gasTempo * 0.6 * dt, 0, 1);
+    // Knöpfe zählen nur beim Herunterdrücken, nicht solange sie gehalten werden
+    const jetzt = { klappenEin: b(4) > 0.5, klappenAus: b(5) > 0.5, kamera: b(3) > 0.5, pause: b(9) > 0.5 }, alt = this.padAlt || jetzt;
+    for (const k in jetzt) if (jetzt[k] && !alt[k]) this.druecke(k);
+    this.padAlt = jetzt;
+    g.benutzt = !!(g.quer || g.hoehe || g.seite || g.bremse || gasTempo);
+    return g;
+  }
   schritt(dt) {
     const e = this.e, t = this.tast, shift = this.unten('ShiftLeft', 'ShiftRight');
     // Tastatur: Eine Taste ist ganz oder gar nicht gedrückt. Der Ausschlag läuft deshalb weich hoch und schnell zurück.
@@ -68,7 +93,10 @@ export class Eingabe {
       if (this.neigung && this.neigung.an) { hoehe += this.neigung.hoehe; quer += this.neigung.quer; this.womit = 'Neigen'; }
       if (this.stick.an) { hoehe += -this.stick.y; quer += this.stick.x; this.womit = 'Touch'; }
       seite += this.pedal; bremse = Math.max(bremse, this.bremsKnopf);
+      const g = this.pad = this.padLesen(dt);
+      if (g) { hoehe += g.hoehe; quer += g.quer; seite += g.seite; bremse = Math.max(bremse, g.bremse); this.trimm += g.trimm; if (g.benutzt) this.womit = 'Gamepad'; }
     }
+    this.trimm = clamp(this.trimm, -1, 1);
     e.hoehe = clamp(hoehe, -1, 1); e.quer = clamp(quer, -1, 1); e.seite = clamp(seite, -1, 1); e.bremse = bremse;
     return e;
   }
