@@ -2,24 +2,39 @@
 // Die Physik bleibt immer dieselbe. Die Hilfen bewegen nur Ruder, die der Pilot sonst selbst bewegen müsste.
 //   'leicht' : Seitenruder von allein, Trimmung von allein, Schräglage höchstens 35°, Nase fällt und steigt nicht zu weit
 //   'mittel' : nur das Seitenruder von allein (Kugel in der Mitte, Pendeln der Nase wird gedämpft)
-//   'echt'   : nichts
+//   'echt'   : nichts – außer auf Wunsch den „Füßen“ (FUSS_MIT): Das Seitenruder geht beim Querruder mit, wie bei einem Piloten
 import { fluegel, fussKraft, G } from './physik.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export const STUFEN = ['leicht', 'mittel', 'echt'];
-export const STUFEN_TEXT = { leicht: 'Leicht: Seitenruder, Trimmung und Schräglage mit Hilfe', mittel: 'Mittel: nur das Seitenruder mit Hilfe', echt: 'Echt: alles selbst – braucht ein Seitenruder mit Gefühl (Pedal-Schieber, Gamepad)' };
+export const STUFEN_TEXT = { leicht: 'Leicht: Seitenruder, Trimmung und Schräglage mit Hilfe', mittel: 'Mittel: nur das Seitenruder mit Hilfe', echt: 'Echt: alles selbst – nur die Füße gehen beim Querruder von allein mit' };
 
 const GIER_DAEMPF = 1.5;      // so stark tritt die Hilfe gegen das Pendeln der Nase (0 = gar nicht, so war es bis 25.11.2026)
 const PEDAL_VOLL = 0.3;       // ab so viel eigenem Pedal hält die Hilfe die Kugel gar nicht mehr in der Mitte
+
+// Die „Füße“ in Echt: Geht ein Querruder hoch, bremst der andere Flügel stärker, und die Nase schwenkt erst einmal in die
+// falsche Richtung. Ein Pilot tritt deshalb bei jeder Querruder-Bewegung ganz von allein mit ins Seitenruder. Wer ein Handy
+// neigt, hat keine Füße frei – also tun wir das für ihn. 1 = genau so viel, dass die Nase nicht mehr falsch herum schwenkt, 0 = gar nicht.
+// (Kristians Flug vom 25.11.2026: ohne Füße pendelte die Nase bei jeder Bewegung, bis 12° Schieben bei halbem Querruder.)
+const FUSS_MIT = 1;
 
 // Was sich die Hilfe von Bild zu Bild merkt, liegt hier und nicht im Flugzeug: Die Physik soll davon nichts wissen.
 const MERK = new WeakMap();
 const merke = f => { let h = MERK.get(f); if (!h) MERK.set(f, h = {}); return h; };
 
 // e = Eingabe des Piloten (wird nicht verändert), f = Flugzeug. Gibt die Eingabe zurück, die wirklich ans Flugzeug geht.
-export function mitHilfe(e, f, stufe, dt) {
+// fuesse = true: In „Echt“ geht das Seitenruder beim Querruder mit (siehe FUSS_MIT). Das Spiel schaltet es ein, die Prüfwerkzeuge nicht.
+export function mitHilfe(e, f, stufe, dt, fuesse) {
   const a = { hoehe: e.hoehe, quer: e.quer, seite: e.seite, gas: e.gas, bremse: e.bremse };
-  if (stufe === 'echt') return a;
+  if (stufe === 'echt') {
+    if (fuesse && !f.amBoden) {
+      // So viel Seitenruder hebt das falsche Schwenken genau auf (aus den Zahlen des Flugzeugs gerechnet, bei der Lerche 0,86 je Querruder).
+      // Tritt der Pilot selbst ins Pedal, halten sich die Füße zurück – er will dann schieben (Seitenwind-Landung, Slip).
+      const T = f.T, passt = -T.cnQuer * T.ruderMax.quer / (T.cnSeite * T.ruderMax.seite), frei = 1 - clamp(Math.abs(e.seite) / PEDAL_VOLL, 0, 1);
+      a.seite = clamp(e.seite + FUSS_MIT * frei * passt * e.quer / fussKraft(T, f.ias), -1, 1);
+    }
+    return a;
+  }
   const h = merke(f);
   if (f.amBoden) {
     // Am Boden lenkt der Knüppel mit: Drehen oder Neigen nach rechts = Bugrad und Seitenruder nach rechts.

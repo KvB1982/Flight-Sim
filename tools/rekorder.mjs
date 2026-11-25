@@ -85,7 +85,7 @@ function nachfliegen(A, Z, stand, dauer, hilfe) {
     if (i >= Z.n - 1) break;
     f.trimm = Z.trimm[i]; f.klappenStufe = Z.kl[i];
     const pilot = { hoehe: Z.eh[i], quer: Z.eq[i], seite: Z.es[i], gas: Z.eg[i], bremse: Z.eb[i] };
-    schritt(f, hilfe ? mitHilfe(pilot, f, hilfe, TAKT) : { hoehe: Z.ah[i], quer: Z.aq[i], seite: Z.as[i], gas: Z.eg[i], bremse: Z.eb[i] }, TAKT, umwelt);
+    schritt(f, hilfe ? mitHilfe(pilot, f, hilfe === 'fuesse' ? 'echt' : hilfe, TAKT, hilfe === 'fuesse') : { hoehe: Z.ah[i], quer: Z.aq[i], seite: Z.as[i], gas: Z.eg[i], bremse: Z.eb[i] }, TAKT, umwelt);
   }
   return aus;
 }
@@ -296,4 +296,4 @@ function selbst() {
 
 if (datei === 'selbst') selbst();
 else if (datei) bericht(lies(datei), { hilfe: wahl.hilfe, t: wahl.t, marke: wahl.marke !== undefined ? +wahl.marke : undefined });
-else console.log('Aufruf: node tools/rekorder.mjs <datei.json oder .json.gz> [hilfe=leicht|mittel|echt] [marke=1] [t=120]   oder   node tools/rekorder.mjs selbst');
+else console.log('Aufruf: node tools/rekorder.mjs <datei.json oder .json.gz> [hilfe=leicht|mittel|echt|fuesse] [marke=1] [t=120]   oder   node tools/rekorder.mjs selbst');

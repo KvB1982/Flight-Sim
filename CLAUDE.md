@@ -118,6 +118,22 @@ Das Review (Claude Doc: https://claude.ai/artifact/ETkXEEz5W28wZ7BsMBSo6S, Skrip
 - **Geprüft:** alle vier Prüfwerkzeuge, die Review-Skripte vorher und nachher, im Test-Browser Handy-Seite und Spiel über `?lokal` (Schieber mit der Maus gezogen, Werte kommen an, Hinweis erscheint), ein Standbild der Handy-Seite.
   **Nicht geprüft:** echtes iPhone, echter Daumen, von Hand geflogen – ob der Schieber sich gut anfühlt und ob „Echt“ damit Spaß macht, ist offen. Alle neuen Zahlen geschätzt.
 
+## Füße in „Echt“ (seit 26.11.2026, nach Kristians ersten Aufzeichnungen)
+
+Kristian schickte am 25.11.2026 drei Flüge aus dem Flugrekorder (zweimal „Mittel“, einmal „Echt“, iPhone als Knüppel) und fragte, ob ein Flugzeug in echt auch „nur hin und her pendelt“.
+Der Echt-Flug zeigte: Das Pedal stand 91 % der Zeit in der Mitte, aber bei jeder Querruder-Bewegung schwenkte die Nase zuerst in die falsche Richtung
+(halbes Querruder bei 65 kn: 13° Kurs falsch herum, 12° Schieben; im Schnitt 4,9° Schieben, in „Mittel“ 0,5° und 1,4°). Das ist das negative Wendemoment (`cnQuer`), es stimmt mit dem Vorbild –
+nur tritt ein Pilot dabei von allein ins Seitenruder, und am Handy hat man keine Füße. Funk (7 ms hin und zurück) und Zittern der Hand (unter 1°) waren es nicht.
+
+- **`FUSS_MIT` in `js/hilfen.js`:** In „Echt“ geht das Seitenruder in der Luft beim Querruder mit, genau so viel, dass das falsche Schwenken aufgehoben ist (aus `cnQuer` und `cnSeite` gerechnet, bei der Lerche 0,86 je Querruder).
+  Tritt der Pilot selbst (bis `PEDAL_VOLL`), halten sich die Füße zurück. Sonst hilft in „Echt“ weiter nichts: Propeller-Zug, Kugel, Pendeln nach einer Bö, Trimmung, Abriss bleiben beim Piloten.
+- Das Spiel schaltet die Füße ein (`mitHilfe(…, true)` in `main.js`), die Prüfwerkzeuge nicht – `flugtest.mjs` misst „Echt“ weiter ohne.
+- `node tools/rekorder.mjs <datei> hilfe=fuesse` fliegt eine Aufzeichnung mit den Füßen nach.
+- **`cnQuer` weiter nicht ändern.** Wenn „Echt“ wieder pendelt: zuerst in der Aufzeichnung nachsehen, ob Querruder oder Pedal der Auslöser ist.
+- Die Funk-Zähler im Kopf einer Aufzeichnung gelten jetzt je Flug (vorher zählten sie seit dem Start des Spiels weiter).
+- **Geprüft:** Kristians Echt-Flug nachgeflogen (Schieben 4,4° → 2,6°, nur die Richtung), ein künstlicher Pilot mit 0,2 und 0,35 s Schrecksekunde, der bei 66 kn mit Klappen den Kurs wechselt
+  (Schieben 6,1° → 1,6°, größtes 17° → 5°), alle fünf Prüfwerkzeuge, im Test-Browser ein Tastendruck in „Echt“ (Seitenruder geht mit). **Nicht geprüft:** von Kristian geflogen.
+
 ## Flugrekorder (seit 25.11.2026, Kristians Idee: „aufzeichnen, was bei meinen Testflügen tatsächlich passiert“)
 
 - Läuft bei **jedem** Flug von allein mit (`rek` in `js/main.js`, nicht zu Fuß beim Außencheck) und ändert am Flug nichts. 30 Zeilen pro Sekunde (`SPALTEN` in `js/rekorder.js`):

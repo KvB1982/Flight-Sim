@@ -122,6 +122,7 @@ function los(lektion) {
   // Der Flugrekorder läuft bei jedem Flug mit. Im Kopf steht, was für ein Flug es ist und womit gesteuert wird.
   rekWas = l ? 'Lektion: ' + l.name : plan ? 'Überland: ' + reise.start.name + ' – ' + reise.ziel.name : ganz ? 'Der ganze Flug' : 'Freier Flug: ' + STARTS[E.start].name;
   nachHilfe = null;
+  eingabe.funk.verloren = eingabe.funk.alt = eingabe.funk.zahl = 0;      // die Funk-Zähler gelten je Flug
   rek.beginn({ beginn: new Date().toISOString(), was: rekWas, hilfe: hilfeJetzt(), wetter: l ? 'ruhig' : E.wetter, womit: eingabe.handyAn ? 'Handy' : eingabe.womit, nah: !!empfang.nahVerbunden, app: inApp,
     geraet: (navigator.userAgent.match(/iPad|iPhone|Android|Macintosh|Windows|Linux/) || ['?'])[0], schirm: [window.innerWidth, window.innerHeight], systeme: !!f.sys, ueberland: !!plan }, f);
 }
@@ -209,7 +210,7 @@ empfang.wennZustand = z => {
   if (z === 'verbunden') {
     melde((empfang.nahVerbunden ? empfang.geraet : 'Handy') + ' als Steuerknüppel verbunden', 'gut', 4);
     // „Echt“ heißt: Seitenruder selbst, bei jeder Kurve. Am Handy geht das nur mit dem Daumen-Schieber – einfacher fliegt es sich mit „Mittel“.
-    if (E.hilfe === 'echt') melde('Hilfen stehen auf „Echt“: Jede Kurve braucht Seitenruder (Schieber unten am Handy). Leichter fliegt es sich mit „Mittel“ – Taste H oder im Menü.', 'info', 10);
+    if (E.hilfe === 'echt') melde('Hilfen stehen auf „Echt“: Nur die Füße gehen in der Kurve von allein mit. Propeller, Trimmung und Seitenwind sind deine Sache. Leichter fliegt es sich mit „Mittel“ – Taste H oder im Menü.', 'info', 10);
   }
   else {
     // Ist der Steuerknüppel mitten im Flug weg (Funkloch, iPhone gesperrt), hält das Spiel an – sonst fliegt die Lerche führerlos weiter.
@@ -368,7 +369,7 @@ function bild(sek, ohneBild) {
     rest = Math.min(rest + sek * mal, 0.1 * mal);
     while (rest >= TAKT) {
       const warBoden = f.amBoden, n = f.ereignisse.length;
-      nachHilfe = mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT);
+      nachHilfe = mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT, true);
       schritt(f, sysRuder(nachHilfe, f), TAKT, umwelt); sysSchritt(f, e, TAKT);
       if (f.ereignisse.length > n) { const a = f.ereignisse[f.ereignisse.length - 1]; klang.rumms(a.sink); empfang.senden({ k: 'r', s: a.sink > 1.8 ? 'schwer' : 'leicht' }); }
       if (warBoden && !f.amBoden && f.hoeheGrund > 0.3 && !flug.abgehoben) { flug.abgehoben = true; }
