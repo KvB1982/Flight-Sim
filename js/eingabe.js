@@ -13,6 +13,7 @@ export const TASTEN_HILFE = [
   ['Gamepad / Joystick', 'linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung, Y = Ansicht'],
   ['M / O / 1 2 3', 'Überlandflug: Karte auf und zu / Zeitraffer an und aus / Funkspruch wählen'],
   ['4 / 5 6 / 7', 'Überlandflug: nächstes Funkfeuer einstellen / Kurs am Funkfeuer 5° zurück und vor / Kurs direkt zum Funkfeuer. Im Überlandflug stellen die Ziffern nicht das Gas (dafür W und S)'],
+  ['F2', 'Flugrekorder: Marke setzen („Hier war es komisch“)'],
   ['X / Y / Enter', 'Der ganze Flug: Schalterbrett / Checkliste auf und zu / nächsten Handgriff erledigen. Zu Fuß: Pfeiltasten gehen und drehen'],
 ];
 
@@ -25,6 +26,9 @@ export class Eingabe {
     this.stick = { x: 0, y: 0, an: false }; this.pedal = 0; this.bremsKnopf = 0;      // Knüppel, Pedale und Bremse auf dem Bildschirm
     this.neigung = null;                                                              // dieses Gerät neigen (Neigung aus neigung.js)
     this.handy = null; this.handyAn = false;                                          // letzte Nachricht vom Handy
+    // Wie gut ist der Funk zum Handy? (für den Flugrekorder) n = Nummer der letzten Nachricht, luecke = längste Pause seit der letzten Rekorder-Zeile (ms),
+    // verloren = Nachrichten, die nie ankamen, alt = zu spät gekommene (werden weggeworfen), runde = Funk hin und zurück (ms)
+    this.funk = { n: -1, zeit: 0, luecke: 0, verloren: 0, alt: 0, runde: 0, zahl: 0 };
     this.trimm = 0;                                                                   // −1, 0, +1: Trimmrad wird gerade gedreht
     this.wenn = {};                                                                   // Knöpfe: klappenAus, klappenEin, kamera, pause, neu, hilfe
     this.womit = 'Tastatur';
@@ -32,7 +36,7 @@ export class Eingabe {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'PageUp', 'PageDown', 'Enter'].includes(ev.code)) ev.preventDefault();
       if (ev.repeat) return;
       this.taste[ev.code] = true;
-      const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer' }[ev.code];
+      const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer', F2: 'marke' }[ev.code];
       if (k) this.druecke(k);
       if (/^Digit\d$/.test(ev.code) && this.ziffer && this.ziffer(+ev.code.slice(5))) return;      // im Überlandflug gehören die Ziffern dem Funk und dem Funkfeuer
       if (/^Digit\d$/.test(ev.code)) this.e.gas = ev.code === 'Digit0' ? 1 : +ev.code.slice(5) / 10;
@@ -44,7 +48,19 @@ export class Eingabe {
   unten(...codes) { return codes.some(c => this.taste[c]); }
   // Nachricht vom Handy
   vomHandy(m) {
-    if (m.k === 's') { this.handy = m; this.handyAn = true; }
+    if (m.k === 's') {
+      const jetzt = performance.now(), fu = this.funk;
+      // Das Handy zählt seine Nachrichten durch. Kommt eine ältere nach einer neueren an, ist sie überholt und fliegt weg.
+      if (typeof m.n === 'number') {
+        if (fu.n >= 0 && m.n < fu.n && fu.n - m.n < 60) { fu.alt++; return; }
+        if (fu.n >= 0 && m.n > fu.n + 1 && m.n - fu.n < 600) fu.verloren += m.n - fu.n - 1;
+        fu.n = m.n;
+      }
+      if (fu.zeit) fu.luecke = Math.max(fu.luecke, jetzt - fu.zeit);
+      fu.zeit = jetzt; fu.zahl++;
+      this.handy = m; this.handyAn = true;
+    }
+    else if (m.k === 'p' && typeof m.t === 'number') this.funk.runde = Math.max(1, Math.round(performance.now() - m.t));      // unser „Ping“ ist zurück
     else if (m.k === 't' && typeof m.a === 'string') {
       if (m.a === 'trimmHoch') this.handyTrimm = 1; else if (m.a === 'trimmRunter') this.handyTrimm = -1; else if (m.a === 'trimmAus') this.handyTrimm = 0;
       else this.druecke(m.a);

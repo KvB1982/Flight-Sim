@@ -8,6 +8,8 @@
 //   Handy → Spiel  { k: 's', q, h, g, s, b }   30-mal pro Sekunde: Querruder, Höhenruder, Gas, Seitenruder, Bremse
 //                  { k: 't', a }                ein Knopf: 'klappenAus', 'klappenEin', 'trimmHoch', 'trimmRunter', 'kamera', 'pause', 'neu'
 //   Spiel → Handy  { k: 'i', ias, hoehe, klappen, boden, abriss }   10-mal pro Sekunde, { k: 'r' } rütteln, { k: 'mitte' } neu kalibrieren
+//   Für den Flugrekorder: 's' trägt dazu n (laufende Nummer), rg, ng (rohe Haltung in Grad), e (Empfindlichkeit); der Knopf 'marke';
+//                  { k: 'p', t } einmal pro Sekunde vom Spiel, das Handy schickt es sofort zurück (daran misst das Spiel die Verspätung)
 //
 // In der App (iPad und iPhone, Ordner ios/) gibt es zusätzlich den Weg ohne Internet: „NahLink“ benutzt Apples Multipeer
 // wie Frontlinie 3 und das Rennspiel. Das iPad wartet, das iPhone sucht und verbindet sich mit dem ersten Flugsimulator
@@ -125,7 +127,7 @@ export class KnueppelEmpfang {
     }).catch(() => this.melde('fehler'));
   }
   senden(m) {
-    if (this.nahVerbunden) { this.nah.senden(m, m.k !== 'i'); return; }
+    if (this.nahVerbunden) { this.nah.senden(m, m.k !== 'i' && m.k !== 'p'); return; }
     if (this.kanal) this.kanal.postMessage({ ...m, von: 'spiel' });
     else if (this.conn && this.conn.open) this.conn.send(m);
   }
@@ -168,7 +170,7 @@ export class KnueppelSender {
     }).catch(() => this.melde('fehler'));
   }
   senden(m) {
-    if (this.nah) { this.nah.senden(m, m.k !== 's'); return; }
+    if (this.nah) { this.nah.senden(m, m.k !== 's' && m.k !== 'p'); return; }
     if (this.kanal) this.kanal.postMessage({ ...m, von: 'handy' });
     else if (this.conn && this.conn.open) this.conn.send(m);
   }
