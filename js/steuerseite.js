@@ -12,7 +12,7 @@ const frage = new URLSearchParams(location.search);
 const lokal = frage.has('lokal');
 const nah = inApp && frage.has('nah');
 const neigung = new Neigung();
-const z = { gas: 0, seite: 0, seiteZiel: 0, bremse: 0, gasZeit: 0 };       // was außer dem Neigen gesendet wird (gasZeit = wann der Gashebel zuletzt bewegt wurde)
+const z = { gas: 0, seite: 0, seiteZiel: 0, bremse: 0, gasZeit: 0, nummer: 0 };       // was außer dem Neigen gesendet wird (gasZeit = wann der Gashebel zuletzt bewegt wurde)
 let sender = null, laeuft = false;
 
 $('code').value = (frage.get('c') || '').toUpperCase().slice(0, 4);
@@ -64,12 +64,16 @@ function vomSpiel(m) {
     else try { if (navigator.vibrate) navigator.vibrate(m.s === 'schwer' ? [120, 60, 160] : 60); } catch (e) { /* egal */ }
   }
   else if (m.k === 'mitte') neigung.mitte();
+  else if (m.k === 'p') { if (sender) sender.senden(m); }      // „Ping“: gleich zurückschicken, das Spiel misst daran die Verspätung des Funks
 }
 
 function senden() {
   // Die Pedale laufen kurz weich hoch, damit das Flugzeug nicht ruckt
   z.seite += Math.max(-0.1, Math.min(0.1, z.seiteZiel - z.seite));           // höchstens 0,1 je Nachricht: voller Weg in einer Drittelsekunde
   const m = { k: 's', q: +neigung.quer.toFixed(3), h: +neigung.hoehe.toFixed(3), s: +z.seite.toFixed(3), b: z.bremse };
+  // Für den Flugrekorder im Spiel: laufende Nummer (so merkt das Spiel verlorene Nachrichten), die rohe Haltung des Handys in Grad
+  // (gedreht, gekippt – vor toter Mitte und Kurve) und die eingestellte Empfindlichkeit
+  m.n = z.nummer++; m.rg = +(neigung.rollGrad || 0).toFixed(1); m.ng = +(neigung.nickGrad || 0).toFixed(1); m.e = neigung.stufe;
   if (performance.now() - z.gasZeit < 500) m.g = +z.gas.toFixed(3);          // Gas nur mitschicken, solange der Hebel bewegt wird
   if (sender) sender.senden(m);
 }
@@ -88,7 +92,7 @@ const knopf = (id, runter, hoch) => {
 const tipp = a => () => { if (sender) sender.senden({ k: 't', a }); };
 knopf('bKlEin', tipp('klappenEin')); knopf('bKlAus', tipp('klappenAus'));
 knopf('bTrH', tipp('trimmHoch'), tipp('trimmAus')); knopf('bTrR', tipp('trimmRunter'), tipp('trimmAus'));
-knopf('bKamera', tipp('kamera')); knopf('bPause', tipp('pause'));
+knopf('bKamera', tipp('kamera')); knopf('bPause', tipp('pause')); knopf('bMarke', tipp('marke'));      // ❗ = Marke im Flugrekorder: „Hier war es komisch“
 knopf('bMitte', () => neigung.mitte());
 knopf('bStufe', () => { $('bStufe').textContent = '🎚 ' + neigung.stufeWeiter(); });
 $('bStufe').textContent = '🎚 ' + neigung.stufe;

@@ -67,6 +67,7 @@ npm run sync
 | --- | --- |
 | `index.html`, `steuer.html`, `css`, `js`, `lib`, `icons` | Das Spiel. Dieselben Dateien laufen weiter im Browser. |
 | `js/native.js` | Kleine Brücke für die App (Rütteln, Knüppel-Plugin, gemerkte Rolle). Im Browser macht sie nichts. |
+| Flugrekorder | „Teilen“ im Menü öffnet in der App das Teilen-Blatt von iPhone und iPad. Dafür sind die Plugins `@capacitor/filesystem` und `@capacitor/share` dabei (`npm install` holt sie, `npm run sync` trägt sie ins Xcode-Projekt ein). |
 | `js/verbindung.js` | `NahLink`: Verbindung iPad ↔ iPhone in der App; daneben weiter PeerJS (QR-Code) und BroadcastChannel (Test). |
 | `capacitor.config.json` | Name, Kennung und Einstellungen der App. |
 | `scripts/copy-web.mjs` | Kopiert das Spiel nach `www` und legt PeerJS und QR-Code nach `www/lib`. Neue Ordner mit Spieldateien müssen dort in die Liste `FILES`. |

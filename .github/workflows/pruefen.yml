@@ -1,4 +1,4 @@
-# Bei jedem Pull Request und jedem Stand auf main laufen die vier Prüfwerkzeuge von allein.
+# Bei jedem Pull Request und jedem Stand auf main laufen die fünf Prüfwerkzeuge von allein.
 # Sie brauchen nur Node, keine Pakete und keinen Browser.
 name: Prüfwerkzeuge
 on:
@@ -24,3 +24,5 @@ jobs:
         run: node tools/ablauf.mjs
       - name: Überlandflug
         run: node tools/ueberland.mjs
+      - name: Flugrekorder
+        run: node tools/rekorder.mjs selbst

@@ -25,6 +25,8 @@ node tools/flugtest.mjs         # Flugphysik nachmessen: 58 Zahlen (Trudeln, Tri
 node tools/schule.mjs           # Flugschule: ein künstlicher Pilot fliegt alle acht Lektionen (Hilfe `leicht`, 0,15 s Schrecksekunde) und muss je zwei Sterne schaffen; `laut` zeigt Ansagen und Verlauf, `nur=landung` nur eine Lektion
 node tools/ablauf.mjs           # Der ganze Flug: ein künstlicher Pilot macht Außencheck, Schalter, Anlassen, Rollen, Platzrunde, Abstellen und Flugbuch (einmal „Selbst“, einmal „Mit Hilfe“), danach wird geprüft, ob Vergessenes Folgen hat; `laut` zeigt die Meldungen
 node tools/ueberland.mjs        # Überlandflug: Gegend (alle Plätze eben, Anflüge frei), Flugplaner, Funkfeuer, fünf Flüge mit dem künstlichen Piloten (Funk, Zeitraffer, Landung am Ziel), ein ganzer Flug vom geparkten Flugzeug bis zum Abstellen am Ziel, Sterne, Folgen von Fehlern, Funk mit festem Zufall; `laut` zeigt den Verlauf, `nur=dreieck|wind|gross|inn|ohlstadt|ganz` nur einen Flug
+node tools/rekorder.mjs selbst   # Flugrekorder: ein künstlicher Pilot fliegt, der Rekorder schreibt mit, Auswerten und Nachfliegen werden geprüft
+node tools/rekorder.mjs flug.json.gz   # Bericht über einen echten Flug aus dem Flugrekorder (`hilfe=mittel` = dieselben Eingaben mit anderer Hilfe nachfliegen, `marke=1` oder `t=120` = eine Stelle Zeile für Zeile)
 node tools/trimm.mjs            # sucht Trimmung und Gas für Steigflug, Reise, Platzrunde, Anflug (die Zahlen stehen in STARTS in js/starts.js)
 ```
 
@@ -66,6 +68,7 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 | `js/kamera.js` | Kameras: Cockpit, hinter dem Flugzeug, vom Turm, zu Fuß (`Kamera`) |
 | `js/tempo.js` | Tempo-Wächter: weniger Bildpunkte, wenn Bilder zu lange dauern (`TempoWaechter`) |
 | Blick drehen | `blick` in `js/kamera.js` (`blickSchritt`, `stelle`): über das Bild ziehen (Maus oder ein Finger) dreht im Cockpit den Kopf und außen die Kamera um das Flugzeug, der Blick bleibt so; Doppel-Tipp oder U = geradeaus. Tasten J L I K: im Cockpit nur solange gehalten (links, rechts, hoch, K = nach hinten), außen drehen sie die Kamera; + − und Mausrad = Abstand. Schaut man im Cockpit weiter als etwa 30° zur Seite, verschwindet das Instrumentenbrett (`blick.brettWeg`), dafür sieht man HUD, Flügel und Strebe |
+| `js/rekorder.js`, `tools/rekorder.mjs` | Der Flugrekorder (siehe Abschnitt „Flugrekorder“): `Rekorder` schreibt 30 Zeilen pro Sekunde (`SPALTEN`), alle 2 s den ganzen Zustand (`standVon`, `standSetzen`), Ereignisse und Marken; `packe` / `entpacke`; im Browser `merkeFlug`, `ladeFluege`, `teile` |
 | `js/schule.js` | Die Flugschule ohne three.js: `LEKTIONEN` (acht Stück: Rollen, Geradeaus und Kurven, Steigen und Sinken, Langsamflug und Abriss, Start, Anflug und Landung, Platzrunde, Alleinflug). Eine Lektion ist eine Liste von Schritten `{ sag, aufgabe, fertig(f, z), halte, fehler(f, z), tipp }`; sie nennt ihren Startort (`start`, bei `'luft'` eine eigene `lage`), ihren Flugweg in der Luft (`weg`: `runde`, `anflug` oder keiner), `hilfeMin` (beim Abriss mindestens `mittel`, sonst verhindert die Hilfe den Abriss), `landung` (die Landenote zählt mit), `allein`. `Unterricht` lässt eine Lektion ablaufen (`schritt(f, dt, flug)`, `sagen`, `aufgabe`, `anteil`, `ergebnis` mit 0 bis 3 Sternen: höchstens eine Ermahnung = 3, bis drei = 2; Bruch = nicht geschafft). Lernstand in `flugsim.schule.v1` (`ladeStand`, `merkeStand`, `offen`: die nächste Lektion geht auf, wenn die davor geschafft ist; im Menü lässt sich alles freischalten, `E.allesOffen`). In der Flugschule ist immer Windstille |
 | Flugschule im Spiel | `schuleSchritt` und `zeigeErgebnis` in `js/main.js`: Was Jule sagt, steht oben im Kasten `#schule` und wird über die Sprachausgabe des Geräts vorgelesen (`klang.sprich`; ein neuer Auftrag unterbricht den alten Satz), darunter die Aufgabe mit Balken für „so lange halten“ und ein Tipp zur Steuerung (Tastatur oder Finger). Am Ende die Nachbesprechung `#ergebnis`: Sterne, Landenote, Anmerkungen, Zeichnung, Knöpfe „Nächste Lektion“, „Noch einmal“, „Menü“ |
 | `js/nachflug.js` | Zeichnung für die Nachbesprechung (Malfläche, ohne three.js): links der geflogene Weg von oben mit Flugplatz, Soll-Weg gestrichelt und roten Punkten, wo Jule etwas angemerkt hat; rechts der Endanflug von der Seite mit dem 3°-Gleitweg (Lektionen mit Landung) oder die Höhe über die Zeit. Die Spur sammelt `main.js` zweimal pro Sekunde (`spur`) |
@@ -114,6 +117,28 @@ Das Review (Claude Doc: https://claude.ai/artifact/ETkXEEz5W28wZ7BsMBSo6S, Skrip
 - Nicht umgesetzt (Vorschlag 6 des Reviews): 60 statt 30 Nachrichten pro Sekunde vom Handy und eine Anzeige der Funk-Verspätung.
 - **Geprüft:** alle vier Prüfwerkzeuge, die Review-Skripte vorher und nachher, im Test-Browser Handy-Seite und Spiel über `?lokal` (Schieber mit der Maus gezogen, Werte kommen an, Hinweis erscheint), ein Standbild der Handy-Seite.
   **Nicht geprüft:** echtes iPhone, echter Daumen, von Hand geflogen – ob der Schieber sich gut anfühlt und ob „Echt“ damit Spaß macht, ist offen. Alle neuen Zahlen geschätzt.
+
+## Flugrekorder (seit 25.11.2026, Kristians Idee: „aufzeichnen, was bei meinen Testflügen tatsächlich passiert“)
+
+- Läuft bei **jedem** Flug von allein mit (`rek` in `js/main.js`, nicht zu Fuß beim Außencheck) und ändert am Flug nichts. 30 Zeilen pro Sekunde (`SPALTEN` in `js/rekorder.js`):
+  was der Pilot steuert (`eh`, `eq`, `es`, `eg`), was nach der Hilfe ans Flugzeug geht (`ah`, `aq`, `as`), wo die Ruder stehen, Tempo, Höhe, Lage, Schieben, Drehraten, Last,
+  die rohe Haltung des Handys in Grad vor toter Mitte und Kurve (`rg`, `ng`) und der Funk (`fl` = längste Pause zwischen zwei Handy-Nachrichten, `fv` = verlorene, `fp` = hin und zurück).
+  Dazu alle 2 s der ganze Zustand des Flugzeugs, Ereignisse (Abriss, Trudeln, Abheben, Aufsetzen, Bruch, Klappen, Hilfe gewechselt, Meldungen) und Marken.
+- **Marke „Hier war es komisch“:** Taste F2, Knopf ❗ auf der Handy-Seite und in der Finger-Steuerung (`eingabe.wenn.marke`).
+- **Teilen:** Menü → „Flugrekorder“ zeigt die letzten 12 Flüge (IndexedDB `flugsim.rekorder`). „Teilen“ macht eine Datei `flug_<Datum>_<Hilfe>.json.gz` (10 Minuten etwa 150 kB):
+  in der App über die Plugins `@capacitor/filesystem` und `@capacitor/share` (Teilen-Blatt), im Browser über `navigator.share` oder als Download. Kristian legt die Datei in den Thread.
+- **Handy:** Die Nachricht `s` trägt dafür `n` (laufende Nummer), `rg`, `ng`, `e` (Empfindlichkeit). Das Spiel schickt einmal pro Sekunde `{ k: 'p', t }`, das Handy schickt es sofort zurück.
+  Nachrichten, die von einer neueren überholt wurden, wirft das Spiel jetzt weg (`eingabe.funk.alt`).
+- **Auswerten:** `node tools/rekorder.mjs <datei>` – je Hilfe-Stufe: Ausschläge, Anschlag, Richtungswechsel, Schwanken und Schwingen von Rollen, Schieben, Nicken, ob die Hand im selben Takt schwingt wie
+  das Flugzeug (Aufschaukeln), was die Hilfe dazugibt, Zittern der Hand, tote Mitte, Funk; die 8 Sekunden vor jeder Marke; Nachfliegen.
+- **Nachfliegen:** Von jedem gespeicherten Zustand aus rechnet die Flugphysik mit den aufgezeichneten Rudern weiter. Im Selbsttest und im Test-Browser liegt das nach 5 s höchstens 0,3° und 0,6 m neben dem echten Flug.
+  Mit `hilfe=…` werden dieselben Eingaben des Piloten mit einer anderen Hilfe nachgeflogen (in Stücken von 6 s) – das zeigt nur die Richtung, weil der Pilot auf ein anderes Flugzeug anders gesteuert hätte.
+  Flüge mit Systemen (der ganze Flug) lassen sich nicht nachfliegen (Motor und Schalter sind nicht aufgezeichnet).
+- **Wenn Kristian eine Aufzeichnung schickt:** zuerst den Bericht lesen, dann die Marken Zeile für Zeile (`marke=1`), dann eine Änderung mit dem Nachfliegen an seinem Flug probieren, bevor er wieder fliegen muss.
+- **Geprüft:** `tools/rekorder.mjs selbst` (läuft auch in den Prüfungen auf GitHub), im Test-Browser ein Flug mit der Handy-Seite über `?lokal` (Marke vom Handy und mit F2, Hilfe gewechselt, Menü, Download, Datei ausgewertet,
+  nach dem Neuladen noch da) und der Weg der App mit nachgemachten Plugins. **Nicht geprüft:** echtes iPhone und iPad, das Teilen-Blatt in der App (die beiden Plugins sind hier nie gebaut worden),
+  Funk-Zahlen über echtes Multipeer, ein langer Flug auf dem Gerät (Speicher). Die Schwellen im Bericht (was als Schwingung, Zittern, Aufschaukeln gilt) sind geschätzt.
+- Nebenbei gesehen: Der künstliche Pilot in „Echt“ (nur Querruder, 0,2 s Verspätung) schaukelt sich nach einem Tritt ins Pedal bei 70 kn mit dem Flugzeug auf (alle 5,6 s, bis 18° Schieben). Ob das Menschen auch passiert, soll die erste echte Aufzeichnung zeigen.
 
 ## Bekannte Grenzen (Stand 22.11.2026)
 

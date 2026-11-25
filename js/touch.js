@@ -62,6 +62,7 @@ export function baueTouch(eingabe, tu) {
   knopf(oben, 'Mitte', 'klein', () => tu.mitte());
   knopf(oben, 'Flugweg', 'klein', () => tu.weg());
   knopf(oben, 'Hilfen', 'klein', () => eingabe.druecke('hilfe'));
+  knopf(oben, '❗ Marke', 'klein', () => eingabe.druecke('marke'));      // Flugrekorder: „Hier war es komisch“
   knopf(oben, 'Menü', 'klein', () => tu.menue());
   return {
     wurzel,

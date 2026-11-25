@@ -27,6 +27,7 @@ import { baueTouch } from './touch.js';
 import { Klang } from './klang.js';
 import { Kamera } from './kamera.js';
 import { TempoWaechter } from './tempo.js';
+import { Rekorder, merkeFlug, ladeFluege, ladeFlug, loescheFlug, teile } from './rekorder.js';
 
 const THREE = window.THREE;
 const frage = new URLSearchParams(location.search);
@@ -50,6 +51,8 @@ let pause = true, imMenue = true, rest = 0, zuletzt = 0, infoZeit = 0;
 let unterricht = null, spur = [], spurZeit = 0, marken = [], endeZeit = 0, lehrerZeit = 0, ergebnisAuf = false;
 // Der ganze Flug (Stufe 3): der Ablauf mit den Checklisten und, solange man draußen ist, der Mensch zu Fuß
 let ablauf = null, geher = null, brettAuf = false, listeAuf = true, panelStand = '';
+// Der Flugrekorder schreibt jeden Flug mit (js/rekorder.js). nachHilfe = was zuletzt nach der Hilfe ans Flugzeug ging, pingZeit = wann der Funk wieder gemessen wird
+const rek = new Rekorder(); let nachHilfe = null, pingZeit = 0, rekWas = '';
 // Welche Hilfe gilt gerade? Manche Lektion braucht mindestens „mittel“ (beim Abriss muss der Schutz aus sein).
 const hilfeJetzt = () => unterricht && unterricht.l.hilfeMin && STUFEN.indexOf(E.hilfe) < STUFEN.indexOf(unterricht.l.hilfeMin) ? unterricht.l.hilfeMin : E.hilfe;
 // Welcher Flugweg in der Luft gehört zu diesem Flug? In der Lektion sagt es die Lektion, sonst der Startort.
@@ -68,6 +71,7 @@ function melde(text, art = 'info', sek = 6) {
 
 // ---------------------------------------------------------------- Flug beginnen
 function los(lektion) {
+  rekEnde('neu');
   const l = lektion && lektion.schritte ? lektion : null, plan = lektion && lektion.punkte ? lektion : null;
   // Ein Überlandflug beginnt entweder gleich auf der Bahn oder – wie der ganze Flug – geparkt mit Außencheck, Tanken und Checklisten
   const park = !!plan && E.reiseStart !== 'bahn', ganz = lektion === 'ganz' || park;
@@ -115,8 +119,21 @@ function los(lektion) {
   if (neigung.an) neigung.mitte();
   empfang.senden({ k: 'mitte' });
   window.__flugsim.f = f;
+  // Der Flugrekorder läuft bei jedem Flug mit. Im Kopf steht, was für ein Flug es ist und womit gesteuert wird.
+  rekWas = l ? 'Lektion: ' + l.name : plan ? 'Überland: ' + reise.start.name + ' – ' + reise.ziel.name : ganz ? 'Der ganze Flug' : 'Freier Flug: ' + STARTS[E.start].name;
+  nachHilfe = null;
+  rek.beginn({ beginn: new Date().toISOString(), was: rekWas, hilfe: hilfeJetzt(), wetter: l ? 'ruhig' : E.wetter, womit: eingabe.handyAn ? 'Handy' : eingabe.womit, nah: !!empfang.nahVerbunden, app: inApp,
+    geraet: (navigator.userAgent.match(/iPad|iPhone|Android|Macintosh|Windows|Linux/) || ['?'])[0], schirm: [window.innerWidth, window.innerHeight], systeme: !!f.sys, ueberland: !!plan }, f);
+}
+// Flug zu Ende (Menü, Ergebnis, neuer Flug): Aufzeichnung auf dem Gerät merken. Zu kurze Flüge fallen weg.
+function rekEnde(grund, mehr) {
+  if (!rek.an) return;
+  const a = rek.ende(f, grund, { funk: { verloren: eingabe.funk.verloren, alt: eingabe.funk.alt, nachrichten: eingabe.funk.zahl }, ...mehr });
+  if (a) merkeFlug(a).then(maleRekorder).catch(() => { /* kein Speicher (z. B. privates Fenster): dann gibt es den Flug nur bis zum nächsten */ });
+  window.__flugsim.aufzeichnung = a;
 }
 function menue() {
+  rekEnde('menü');
   pause = true; imMenue = true; reise = null; ansicht.neu(null, null); unterricht = null; ablauf = null; geher = null; brettAuf = false; ergebnisAuf = false;
   malePanels(); stimmeAus();
   $('ergebnis').classList.remove('an'); $('schule').classList.remove('an'); document.body.classList.remove('in-schule'); $('menue').classList.remove('zu');
@@ -146,6 +163,7 @@ function schuleSchritt(sek) {
   if (u.fertig && !ergebnisAuf) { endeZeit += sek; if (endeZeit > 3) zeigeErgebnis(); }
 }
 function zeigeErgebnis() {
+  rekEnde('lektion', { sterne: unterricht.ergebnis ? unterricht.ergebnis.sterne : 0 });
   const u = unterricht, r = u.ergebnis, nr = LEKTIONEN.indexOf(u.l);
   ergebnisAuf = true; pause = true; $('schule').classList.remove('an'); $('eBild').style.height = ''; $('eLeg').style.display = '';
   if (r.geschafft) merkeStand(localStorage, u.l.id, r.sterne);
@@ -165,6 +183,8 @@ function zeigeErgebnis() {
 }
 
 eingabe.wenn = {
+  // Marke im Flugrekorder: „Hier war es komisch“. Später sieht man in der Aufzeichnung genau diese Stelle an.
+  marke() { if (rek.an && !pause) { const n = rek.marke(f); melde(`❗ Marke ${n} gesetzt – diese Stelle wird in der Aufzeichnung angesehen.`, 'gut', 3); } },
   klappenAus() { if (f.klappenStufe < 3) { f.klappenStufe++; melde(`Klappen ${f.T.klappen[f.klappenStufe]}°`, 'info', 2); } },
   klappenEin() { if (f.klappenStufe > 0) { f.klappenStufe--; melde(`Klappen ${f.T.klappen[f.klappenStufe]}°`, 'info', 2); } },
   kamera() { E.kamera = KAMERAS[(KAMERAS.indexOf(E.kamera) + 1) % KAMERAS.length]; kam.alt = null; kam.mitte(); merke(); },
@@ -194,7 +214,7 @@ empfang.wennZustand = z => {
   else {
     // Ist der Steuerknüppel mitten im Flug weg (Funkloch, iPhone gesperrt), hält das Spiel an – sonst fliegt die Lerche führerlos weiter.
     const flog = eingabe.handyAn && !pause && !imMenue && !ergebnisAuf;
-    eingabe.handyAn = false; eingabe.handy = null;
+    eingabe.handyAn = false; eingabe.handy = null; eingabe.funk.n = -1; eingabe.funk.zeit = 0; eingabe.funk.runde = 0;
     if (flog) { eingabe.druecke('pause'); melde('Der Steuerknüppel ist getrennt. Pause – weiter mit einem Tipp auf den Bildschirm oder P.', 'warn', 8); }
   }
   maleMenue();
@@ -264,7 +284,7 @@ const buchZeile = b => [
 function schreibeFlugbuch() {
   if (!ablauf || !ablauf.kannEnden(f)) return;
   if (reise) { zeigeReise(); return; }                    // ganzer Überlandflug: Die Auswertung der Reise zeigt auch die Checklisten
-  const b = ablauf.ende(f, flug); schreibeBuch(localStorage, b, f);
+  const b = ablauf.ende(f, flug); schreibeBuch(localStorage, b, f); rekEnde('flugbuch');
   ergebnisAuf = true; pause = true; malePanels(); $('eBild').style.height = ''; $('eLeg').style.display = '';
   $('eTitel').textContent = b.bruch ? 'Flugbuch – das ging schief' : 'Flugbuch – Flug eingetragen';
   $('eSterne').textContent = '';
@@ -308,6 +328,7 @@ function zeigeReise() {
   const R = reise, r = R.ergebnis(f), b = ablauf ? ablauf.ende(f, flug) : null;
   const eintrag = { datum: r.datum, dauer: b ? b.dauer : r.dauer, flugZeit: r.flugZeit, landung: r.landung, regeln: b ? b.regeln : r.sterne, ueberland: r.sterne, ganz: !!b, bruch: !!r.bruch, vergessen: b ? b.vergessen : [], strecke: `${r.von} → ${r.nach}`, nm: Math.round(r.strecke) };
   if (b) schreibeBuch(localStorage, eintrag, f); else schreibeEintrag(localStorage, eintrag);
+  rekEnde('überland', { sterne: r.sterne });
   ergebnisAuf = true; pause = true; malePanels();
   ansicht.auswertung(f, r, b, () => los(R.plan), () => { menue(); planer.auf(); });
 }
@@ -347,13 +368,19 @@ function bild(sek, ohneBild) {
     rest = Math.min(rest + sek * mal, 0.1 * mal);
     while (rest >= TAKT) {
       const warBoden = f.amBoden, n = f.ereignisse.length;
-      schritt(f, sysRuder(mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT), f), TAKT, umwelt); sysSchritt(f, e, TAKT);
+      nachHilfe = mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT);
+      schritt(f, sysRuder(nachHilfe, f), TAKT, umwelt); sysSchritt(f, e, TAKT);
       if (f.ereignisse.length > n) { const a = f.ereignisse[f.ereignisse.length - 1]; klang.rumms(a.sink); empfang.senden({ k: 'r', s: a.sink > 1.8 ? 'schwer' : 'leicht' }); }
       if (warBoden && !f.amBoden && f.hoeheGrund > 0.3 && !flug.abgehoben) { flug.abgehoben = true; }
       rest -= TAKT;
     }
     flug.schritt(f, sek * mal);
-    for (const m of flug.meldungen.splice(0)) melde(m.text, m.art, m.art === 'info' ? 5 : 9);
+    for (const m of flug.meldungen.splice(0)) { melde(m.text, m.art, m.art === 'info' ? 5 : 9); rek.ereignis(f, 'meldung', { text: m.text, was: m.art }); }
+    // Flugrekorder: eine Zeile mit allem, was gerade gesteuert wird und was das Flugzeug macht (zu Fuß beim Außencheck nicht)
+    if (!geher && nachHilfe) {
+      const h = eingabe.handyAn && eingabe.handy, roh = h ? [+h.rg || 0, +h.ng || 0] : neigung.an ? [neigung.rollGrad || 0, neigung.nickGrad || 0] : null;
+      rek.schritt(f, { e, a: nachHilfe, funk: h ? eingabe.funk : null, roh, hilfe: hilfeJetzt(), womit: eingabe.womit, raffer: mal > 1 });
+    }
     if (flug.ruf) { klang.sprich(flug.ruf); flug.ruf = null; }
     if (unterricht) schuleSchritt(sek);
     if (ablauf) ganzSchritt(sek);
@@ -363,6 +390,8 @@ function bild(sek, ohneBild) {
     for (const k in welt.wege) welt.wege[k].visible = !!E.weg && k === w; } kam.stelle(sek, f, geher); if (!ohneBild) { welt.male(); maleAnzeigen(); } klang.schritt(f, pause);
   if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher, !!reise);
   empfang.pruefen();
+  // Einmal pro Sekunde ein „Ping“ ans Handy: Es schickt ihn sofort zurück, daran sieht der Flugrekorder die Verspätung des Funks.
+  pingZeit -= sek; if (pingZeit <= 0 && empfang.verbunden) { pingZeit = 1; empfang.senden({ k: 'p', t: performance.now() }); }
   infoZeit -= sek;
   if (infoZeit <= 0 && empfang.verbunden) { infoZeit = 0.1;
     empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2) }); }
@@ -413,6 +442,27 @@ function maleMenue() {
   $('nah').classList.toggle('an', inApp);
   if (inApp) $('nahStand').textContent = empfang.nahVerbunden ? '✅ ' + (empfang.geraet || 'iPhone') + ' ist als Steuerknüppel verbunden.' : 'Wartet auf ein iPhone in der Nähe …';
 }
+// Flugrekorder im Menü: die letzten Flüge mit „Teilen“ (Datei verschicken) und „Löschen“
+const zeitText = sek => Math.floor(sek / 60) + ':' + String(Math.round(sek % 60)).padStart(2, '0');
+async function maleRekorder() {
+  const liste = await ladeFluege(), kasten = $('rekListe');
+  $('rekKopf').textContent = `Flugrekorder (${liste.length} ${liste.length === 1 ? 'Flug' : 'Flüge'})`;
+  kasten.innerHTML = liste.length ? '' : '<p>Noch kein Flug aufgezeichnet. Der Rekorder läuft bei jedem Flug von allein mit.</p>';
+  for (const k of liste) {
+    const zeile = document.createElement('div'), text = document.createElement('span'), bTeilen = document.createElement('button'), bWeg = document.createElement('button');
+    const d = new Date(k.id), wann = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    text.textContent = `${wann} · ${k.was} · ${zeitText(k.dauer)} min · Hilfen: ${k.hilfe} · ${k.womit}`;
+    bTeilen.className = bWeg.className = 'klein'; bTeilen.textContent = '📤 Teilen'; bWeg.textContent = '🗑';
+    bTeilen.onclick = async () => {
+      const a = await ladeFlug(k.id); if (!a) return;
+      const weg = await teile(a);
+      if (weg === 'datei') melde('Die Aufzeichnung liegt jetzt als Datei bei deinen Downloads.', 'gut', 6);
+    };
+    bWeg.onclick = async () => { await loescheFlug(k.id); maleRekorder(); };
+    zeile.className = 'rekZeile'; zeile.append(text, bTeilen, bWeg); kasten.appendChild(zeile);
+  }
+}
+maleRekorder();
 $('bLos').onclick = () => los(null);
 $('bGanz').onclick = () => los('ganz');
 const planer = new Planer(E, merke, plan => los(plan), () => maleMenue(), () => Math.round(ladeZustand(localStorage).sprit / LITER));
@@ -465,7 +515,7 @@ document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
 window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get reise() { return reise;
-  }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; } };
+  }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; }, rek, maleRekorder };
 if (inApp) empfang.nahStarten();      // in der App wartet das Spiel von Anfang an auf ein iPhone in der Nähe
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
