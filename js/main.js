@@ -186,7 +186,11 @@ eingabe.wenn = {
 };
 empfang.wennDaten = m => eingabe.vomHandy(m);
 empfang.wennZustand = z => {
-  if (z === 'verbunden') melde((empfang.nahVerbunden ? empfang.geraet : 'Handy') + ' als Steuerknüppel verbunden', 'gut', 4);
+  if (z === 'verbunden') {
+    melde((empfang.nahVerbunden ? empfang.geraet : 'Handy') + ' als Steuerknüppel verbunden', 'gut', 4);
+    // „Echt“ heißt: Seitenruder selbst, bei jeder Kurve. Am Handy geht das nur mit dem Daumen-Schieber – einfacher fliegt es sich mit „Mittel“.
+    if (E.hilfe === 'echt') melde('Hilfen stehen auf „Echt“: Jede Kurve braucht Seitenruder (Schieber unten am Handy). Leichter fliegt es sich mit „Mittel“ – Taste H oder im Menü.', 'info', 10);
+  }
   else {
     // Ist der Steuerknüppel mitten im Flug weg (Funkloch, iPhone gesperrt), hält das Spiel an – sonst fliegt die Lerche führerlos weiter.
     const flog = eingabe.handyAn && !pause && !imMenue && !ergebnisAuf;

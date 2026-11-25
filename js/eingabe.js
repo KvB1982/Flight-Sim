@@ -97,7 +97,10 @@ export class Eingabe {
     } else {
       if (this.neigung && this.neigung.an) { hoehe += this.neigung.hoehe; quer += this.neigung.quer; this.womit = 'Neigen'; }
       if (this.stick.an) { hoehe += -this.stick.y; quer += this.stick.x; this.womit = 'Touch'; }
-      seite += this.pedal; bremse = Math.max(bremse, this.bremsKnopf);
+      // Die Pedal-Knöpfe auf dem Bildschirm sind nur an oder aus. Der Ausschlag läuft deshalb langsam hoch (0,8 s bis voll) und schnell zurück –
+      // wer kurz tippt, bekommt wenig Ruder, wer hält, bekommt mehr.
+      this.pedalIst = (this.pedalIst || 0) + clamp(this.pedal - (this.pedalIst || 0), -(this.pedal ? 1.25 : 5) * dt, (this.pedal ? 1.25 : 5) * dt);
+      seite += this.pedalIst; bremse = Math.max(bremse, this.bremsKnopf);
       const g = this.pad = this.padLesen(dt);
       if (g) { hoehe += g.hoehe; quer += g.quer; seite += g.seite; bremse = Math.max(bremse, g.bremse); this.trimm += g.trimm; if (g.benutzt) this.womit = 'Gamepad'; }
     }

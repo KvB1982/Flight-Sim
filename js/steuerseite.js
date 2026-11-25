@@ -1,5 +1,5 @@
 // Flugsimulator – die Seite auf dem Handy: Das Handy ist der Steuerknüppel.
-// Neigen = Quer- und Höhenruder, rechts der Gashebel, unten die Pedale für das Seitenruder und die Bremse,
+// Neigen = Quer- und Höhenruder, rechts der Gashebel, unten der Schieber für das Seitenruder und die Bremse,
 // links Klappen und Trimmung. 30-mal pro Sekunde geht der Stand ans Spiel.
 // Testen ohne Handy: steuer.html?c=CODE&lokal in einem zweiten Fenster, dann __steuer.start() und __steuer.neigung.sensor(beta, gamma).
 // In der App (iPhone) gibt es die Seite auch ohne Code: steuer.html?nah sucht direkt ein iPad in der Nähe (Multipeer, ohne Internet).
@@ -68,8 +68,8 @@ function vomSpiel(m) {
 
 function senden() {
   // Die Pedale laufen kurz weich hoch, damit das Flugzeug nicht ruckt
-  z.seite += Math.max(-0.2, Math.min(0.2, z.seiteZiel - z.seite));
-  const m = { k: 's', q: +neigung.quer.toFixed(3), h: +neigung.hoehe.toFixed(3), s: +z.seite.toFixed(2), b: z.bremse };
+  z.seite += Math.max(-0.1, Math.min(0.1, z.seiteZiel - z.seite));           // höchstens 0,1 je Nachricht: voller Weg in einer Drittelsekunde
+  const m = { k: 's', q: +neigung.quer.toFixed(3), h: +neigung.hoehe.toFixed(3), s: +z.seite.toFixed(3), b: z.bremse };
   if (performance.now() - z.gasZeit < 500) m.g = +z.gas.toFixed(3);          // Gas nur mitschicken, solange der Hebel bewegt wird
   if (sender) sender.senden(m);
 }
@@ -92,8 +92,23 @@ knopf('bKamera', tipp('kamera')); knopf('bPause', tipp('pause'));
 knopf('bMitte', () => neigung.mitte());
 knopf('bStufe', () => { $('bStufe').textContent = '🎚 ' + neigung.stufeWeiter(); });
 $('bStufe').textContent = '🎚 ' + neigung.stufe;
-knopf('bLinks', () => { z.seiteZiel = -1; }, () => { z.seiteZiel = 0; });
-knopf('bRechts', () => { z.seiteZiel = 1; }, () => { z.seiteZiel = 0; });
+// Seitenruder: ein Schieber statt zwei Knöpfen. Mit Knöpfen gab es nur „voll“ oder „gar nicht“ – damit schlingert jedes Flugzeug.
+// Wo der Daumen aufsetzt, ist die Mitte (man muss nicht hinschauen). PEDAL_WEG = so weit schieben (Anteil der Feldbreite) ist voller Ausschlag,
+// PEDAL_WEICH = um die Mitte herum feiner (1 = gleichmäßig). Loslassen = Ruder zurück in die Mitte.
+const PEDAL_WEG = 0.32, PEDAL_WEICH = 1.5;
+const pedal = $('pedalFeld'); let pedalFinger = null, pedalStart = 0;
+const pedalZeigen = () => {
+  $('pedalKnopf').style.transform = `translateX(${(z.seiteZiel * 280).toFixed(0)}%)`;
+  $('pedalText').textContent = z.seiteZiel ? `Seitenruder ${z.seiteZiel < 0 ? '◀ links' : 'rechts ▶'} ${Math.round(Math.abs(z.seiteZiel) * 100)} %` : '◀ Seitenruder ▶ · Daumen auflegen und schieben';
+};
+function pedalVon(ev) {
+  const weit = (ev.clientX - pedalStart) / (pedal.getBoundingClientRect().width * PEDAL_WEG), a = Math.min(1, Math.abs(weit));
+  z.seiteZiel = Math.sign(weit) * Math.pow(a, PEDAL_WEICH); pedalZeigen();
+}
+pedal.addEventListener('pointerdown', ev => { ev.preventDefault(); if (pedalFinger !== null) return; pedalFinger = ev.pointerId; pedalStart = ev.clientX; pedal.classList.add('unten'); try { pedal.setPointerCapture(ev.pointerId); } catch (e) { /* egal */ } ruetteln(0.2); pedalVon(ev); });
+pedal.addEventListener('pointermove', ev => { if (ev.pointerId === pedalFinger) pedalVon(ev); });
+const pedalLos = ev => { if (ev.pointerId !== pedalFinger) return; pedalFinger = null; z.seiteZiel = 0; pedal.classList.remove('unten'); pedalZeigen(); };
+pedal.addEventListener('pointerup', pedalLos); pedal.addEventListener('pointercancel', pedalLos);
 knopf('bBremse', () => { z.bremse = 1; }, () => { z.bremse = 0; });
 
 // Gashebel: Der Finger schiebt den Balken, er bleibt stehen, wo man loslässt.

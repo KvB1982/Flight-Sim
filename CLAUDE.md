@@ -49,14 +49,14 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 |---|---|
 | `js/flugzeuge.js` | Alle Zahlen der Lerche 172 (`FLUGZEUGE.lerche`): Gewicht, Flügel, Beiwerte für Auftrieb, Widerstand und Ruder (angelehnt an veröffentlichte Lehrbuch-Werte für ein Flugzeug dieser Größe), Motor, Klappen 0/10/20/30°, Räder, Stellen für den Bruch (`huelle`), Tempo-Marken für den Fahrtmesser (`v`) |
 | `js/physik.js` | Flugphysik ohne three.js, 120 Schritte pro Sekunde (`TAKT`): Kräfte (Auftrieb, Widerstand, Schub, Gewicht) und Drehmomente, Strömungsabriss, Bodeneffekt, Propeller (Schub fällt mit dem Tempo, zieht die Nase nach links), Fahrwerk als Federn mit Reibung, Bremsen und lenkendem Bugrad, Wind. `neuesFlugzeug`, `setze` (hinstellen), `schritt`. Beim Aufsetzen ein Eintrag in `f.ereignisse`; Bruch (`f.bruch`) bei mehr als 3,6 m/s Sinken oder wenn Flügel, Heck, Propeller oder Rumpf den Boden berühren. Anzeige-Werte: `ias`, `hoeheGrund`, `steig`, `kurs`, `nick`, `roll`, `kugel`, `wende`, `abriss`, `drehzahl` |
-| `js/hilfen.js` | Hilfen `leicht` / `mittel` / `echt` (`mitHilfe`). Die Physik bleibt gleich, die Hilfe bewegt nur Ruder: Seitenruder von allein (Kugel in der Mitte; am Boden lenkt der Knüppel und die Richtung wird gehalten), bei `leicht` dazu Trimmung wandert nach, Schräglage höchstens 35°, Nase höchstens 15° hoch und 12° runter, kein Ziehen in den Abriss, Flügel richten sich beim Loslassen auf, Heck schlägt beim Abheben nicht auf |
+| `js/hilfen.js` | Hilfen `leicht` / `mittel` / `echt` (`mitHilfe`). Die Physik bleibt gleich, die Hilfe bewegt nur Ruder: Seitenruder von allein (Kugel in der Mitte, Gier-Dämpfung gegen das Pendeln der Nase; am Boden lenkt der Knüppel und die Richtung wird gehalten), bei `leicht` dazu Trimmung wandert nach, Schräglage höchstens 35°, Nase höchstens 15° hoch und 12° runter, kein Ziehen in den Abriss, Flügel richten sich beim Loslassen auf, Heck schlägt beim Abheben nicht auf |
 | `js/atmosphaere.js` | Wetter (`WETTER`: windstill, leichter Wind, Seitenwind, böig) |
 | `js/platz.js` | Flugplatz Lerchenfeld: Bahn 36/18 (1000 × 23 m), Vorfeld, Gelände (`bodenHoehe` kommt seit Stufe 4 aus `region.js`: 3 km um Lerchenfeld flach auf Höhe 0), Gleitweg 3° und PAPI (`anflug`, `PAPI_WINKEL`) |
 | `js/flug.js` | Ablauf eines Flugs: Meldungen, Warnungen, Höhenansagen und die Note für die Landung (`landeNote`: 1 bis 5 Sterne aus Sinkrate, Tempo, Mittellinie, Aufsetzpunkt, Schräglage) |
 | `js/eingabe.js` | Fasst alle Steuerungen zusammen: Handy (Vorrang), Neigen dieses Geräts, Knüppel auf dem Bildschirm, Gamepad oder Joystick, Tastatur (`TASTEN_HILFE`) |
 | `js/neigung.js` | Gerät neigen wie einen Steuerknüppel, Rechnung aus Frontline (`js/touch.js` dort): Mitte merken, 5 Stufen Empfindlichkeit, tote Mitte, **kein Glätten** |
 | `js/verbindung.js` | Handy ↔ Spiel wie im Rennspiel: PeerJS, Code mit 4 Zeichen, QR-Code; zum Testen BroadcastChannel. Nachrichten stehen oben in der Datei |
-| `steuer.html`, `js/steuerseite.js` | Die Seite auf dem Handy: Neigen = Knüppel, Gashebel rechts (Gas wird nur mitgeschickt, solange man den Hebel bewegt), Pedale und Bremse unten, Klappen und Trimmung links, Anzeige von Tempo, Höhe, Klappen; rüttelt beim Aufsetzen (nur Android) |
+| `steuer.html`, `js/steuerseite.js` | Die Seite auf dem Handy: Neigen = Knüppel, Gashebel rechts (Gas wird nur mitgeschickt, solange man den Hebel bewegt), Seitenruder-Schieber und Bremse unten, Klappen und Trimmung links, Anzeige von Tempo, Höhe, Klappen; rüttelt beim Aufsetzen (nur Android) |
 | `js/touch.js` | Finger-Steuerung auf dem iPad: Knüppel rechts, Schubhebel links, Knöpfe |
 | `js/welt.js` | Die Welt in 3D: Himmel, Wolken, Gelände, Bahn mit Zahlen, Rollweg, Vorfeld, Halle und Turm, Windsack, PAPI-Lampen (wachsen mit dem Abstand, damit man sie von weitem sieht), Bäume, Dorf |
 | `js/flugzeugbau.js` | Die Lerche aus einfachen Formen, Ruder, Klappen und Propeller bewegen sich |
@@ -94,6 +94,26 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 - **TestFlight nach jeder Änderung:** `npm run testflight` auf Kristians Mac (`scripts/testflight.sh`: pull, sync, Archiv, Upload; Build-Nummer = Uhrzeit).
 - Testen ohne Gerät: `node scripts/copy-web.mjs`, `www/` ausliefern und `window.Capacitor` mit einem nachgemachten `KnueppelLink` (zwei Fenster über BroadcastChannel) per Playwright `addInitScript` einspielen. Im Test-Chromium lehnt `DeviceOrientationEvent.requestPermission` ab – dort vorher entfernen.
 - Geprüft (23.11.2026) nur so im Test-Browser: Verbinden, Knüppel und Gas kommen an, Klappen-Knopf, Tempo und Höhe zurück aufs iPhone, Rütteln, gemerkte Rolle, „✕ Spiel“, Pause beim Trennen, QR-Code und PeerJS vom Gerät. **Nicht geprüft:** echtes Multipeer, echte Geräte, Neigen in der App, Ton und Sprachausgabe in der App, Tempo auf dem iPad.
+
+## Seitenruder und Schlingern (Review vom 25.11.2026)
+
+Kristian ist mit dem iPhone als Knüppel geflogen: „Leicht“ gut, „Mittel“ geht, „Echt“ kaum kontrollierbar („schlingert nur hin und her, Seitenruder lässt das Flugzeug wild schlingern“).
+Das Review (Claude Doc: https://claude.ai/artifact/ETkXEEz5W28wZ7BsMBSo6S, Skripte im Projektordner `flugsim/review2/`) fand: Das Flugmodell passt
+(Pendeln um die Hochachse 2,2 s je Schwingung, Dämpfung 0,24 – wie beim Vorbild), die Ursache war die Steuerung um die Hochachse. Umgesetzt:
+
+- **Gier-Dämpfung in der Hilfe** (`GIER_DAEMPF` 1,5 in `js/hilfen.js`, gilt für `mittel` und `leicht`): Seitenruder gegen die Drehung der Nase, abzüglich der Drehung, die zur Kurve gehört.
+  Vorher machte die Hilfe das Pendeln länger als ohne Hilfe (nach einem Pedal-Tritt 12 Nulldurchgänge statt 5), jetzt ist es einer.
+- **Die Hilfe bleibt beim Pedal an**: Was der Pilot tritt, kommt dazu. Je mehr er tritt (bis `PEDAL_VOLL` 0,3), desto weniger hält die Hilfe Kugel und Nase fest (`frei`) – bei einer Seitenwind-Landung stört sie also nicht.
+- **Seitenruder wird bei Tempo schwer** (`fussKraft` in `js/physik.js`, `seiteWeichAb` 36 m/s und `seiteWeichHoch` 3 in `js/flugzeuge.js`): bis etwa 70 kn voller Ausschlag, bei 100 kn ein Drittel, bei 120 kn ein Fünftel.
+  Das ist stärker als beim Vorbild (dort geht unter der Manövergeschwindigkeit der volle Ausschlag) und mit Absicht so. Voll getreten bei 100 kn: 7° Schieben statt 21°. Das Bugrad lenkt unverändert.
+- **Pedal-Schieber am Handy** (`#pedalFeld` in `steuer.html`, `PEDAL_WEG`, `PEDAL_WEICH` in `js/steuerseite.js`): Wo der Daumen aufsetzt, ist die Mitte, schieben = dosieren, loslassen = Mitte. Vorher zwei Knöpfe mit vollem Ausschlag in 0,17 s.
+  Die Pedal-Knöpfe auf dem iPad-Bildschirm (`js/touch.js`) sind geblieben, laufen aber in 0,8 s hoch (`pedalIst` in `js/eingabe.js`).
+- **Hinweis bei „Echt“**: im Menü-Text und als Meldung, wenn sich ein Handy verbindet, während „Echt“ eingestellt ist. Umgestellt wird nichts von allein.
+- **Nicht geändert und nicht ändern:** die Beiwerte des Flugzeugs und die Neige-Rechnung. Tote Mitte, Kurve und Zittern der Hand waren im Versuch nicht die Ursache; Glätten bringt nichts und kostet Verspätung.
+  Wenn Kristian wieder sagt, das Flugzeug schlingert: zuerst das Seitenruder ansehen (wer tritt wie viel), nicht die Neigung filtern.
+- Nicht umgesetzt (Vorschlag 6 des Reviews): 60 statt 30 Nachrichten pro Sekunde vom Handy und eine Anzeige der Funk-Verspätung.
+- **Geprüft:** alle vier Prüfwerkzeuge, die Review-Skripte vorher und nachher, im Test-Browser Handy-Seite und Spiel über `?lokal` (Schieber mit der Maus gezogen, Werte kommen an, Hinweis erscheint), ein Standbild der Handy-Seite.
+  **Nicht geprüft:** echtes iPhone, echter Daumen, von Hand geflogen – ob der Schieber sich gut anfühlt und ob „Echt“ damit Spaß macht, ist offen. Alle neuen Zahlen geschätzt.
 
 ## Bekannte Grenzen (Stand 22.11.2026)
 
