@@ -36,6 +36,10 @@ export const FLUGZEUGE = {
     // Bei viel Fahrt drückt die Luft so fest aufs Höhenruder, dass die Hand es nicht mehr ganz ausschlagen kann:
     // über ruderWeichAb (m/s angezeigte Fahrt) schrumpft der Ausschlag mit dem Quadrat des Tempos
     ruderWeichAb: 36,
+    // Auch das Seitenruder wird bei Fahrt schwer: über seiteWeichAb (m/s, etwa 70 Knoten) schafft der Fuß nicht mehr den ganzen Weg,
+    // bei 100 Knoten noch ein Drittel, bei 120 ein Fünftel. Langsam (Start, Anflug, Seitenwind-Landung, Trudeln) bleibt der volle Ausschlag.
+    // Das ist stärker als beim Vorbild und mit Absicht so: Ohne Kraft im Pedal tritt man im Spiel sonst viel zu weit.
+    seiteWeichAb: 36, seiteWeichHoch: 3,
     // ---- Motor und Propeller
     leistung: 120000,     // Watt bei Vollgas am Boden (etwa 160 PS)
     propGut: 0.83, propV0: 28,     // Der Propeller zieht im Stand am stärksten und bei Tempo schwächer

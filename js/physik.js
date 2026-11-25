@@ -93,6 +93,9 @@ export function fluegel(T, a, kl, kEffekt = 1) {
   return [ca, cw, weg, aAb];
 }
 
+// So viel vom Seitenruder-Ausschlag schafft der Fuß bei diesem Tempo (angezeigte Fahrt in m/s): 1 = alles
+export const fussKraft = (T, ias) => T.seiteWeichAb ? Math.min(1, Math.pow(T.seiteWeichAb / Math.max(1, ias), T.seiteWeichHoch || 2)) : 1;
+
 // ---------------------------------------------------------------- ein Rechenschritt
 // e = was der Pilot gerade will: hoehe (+ ziehen), quer (+ nach rechts), seite (+ Nase nach rechts), gas 0…1, bremse 0…1
 // welt = { wind(p, t) → [x, y, z] in m/s, boden(x, z) → Höhe des Bodens }
@@ -134,7 +137,7 @@ export function schritt(f, e, dt, welt) {
   const pb = pLuft * T.spann / (2 * V), rb = r * T.spann / (2 * V), qc = qq * T.tiefe / (2 * V);
   const iasJetzt = Math.max(0, vl[2]) * Math.sqrt(rho / RHO0);
   const handKraft = Math.min(1, Math.pow(T.ruderWeichAb / Math.max(1, iasJetzt), 2));       // bei viel Fahrt geht das Höhenruder nicht mehr ganz auf Anschlag
-  const dh = f.ruder.hoehe * T.ruderMax.hoehe * handKraft + T.trimmMitte + f.trimm * T.trimmWeg, dq = f.ruder.quer * T.ruderMax.quer, ds = f.ruder.seite * T.ruderMax.seite;
+  const dh = f.ruder.hoehe * T.ruderMax.hoehe * handKraft + T.trimmMitte + f.trimm * T.trimmWeg, dq = f.ruder.quer * T.ruderMax.quer, ds = f.ruder.seite * T.ruderMax.seite * fussKraft(T, iasJetzt);
 
   // ---- Kräfte am Flugzeug (Körper-Richtungen)
   // Kommt die Luft schräg von der Seite, zählt für den Flügel nur der Teil, der quer über ihn streicht.

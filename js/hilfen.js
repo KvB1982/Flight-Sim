@@ -1,13 +1,16 @@
 // Flugsimulator – Hilfen für den Piloten. Ohne Grafik.
 // Die Physik bleibt immer dieselbe. Die Hilfen bewegen nur Ruder, die der Pilot sonst selbst bewegen müsste.
 //   'leicht' : Seitenruder von allein, Trimmung von allein, Schräglage höchstens 35°, Nase fällt und steigt nicht zu weit
-//   'mittel' : nur das Seitenruder von allein
+//   'mittel' : nur das Seitenruder von allein (Kugel in der Mitte, Pendeln der Nase wird gedämpft)
 //   'echt'   : nichts
-import { fluegel } from './physik.js';
+import { fluegel, fussKraft, G } from './physik.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export const STUFEN = ['leicht', 'mittel', 'echt'];
-export const STUFEN_TEXT = { leicht: 'Leicht: Seitenruder, Trimmung und Schräglage mit Hilfe', mittel: 'Mittel: nur das Seitenruder mit Hilfe', echt: 'Echt: alles selbst' };
+export const STUFEN_TEXT = { leicht: 'Leicht: Seitenruder, Trimmung und Schräglage mit Hilfe', mittel: 'Mittel: nur das Seitenruder mit Hilfe', echt: 'Echt: alles selbst – braucht ein Seitenruder mit Gefühl (Pedal-Schieber, Gamepad)' };
+
+const GIER_DAEMPF = 1.5;      // so stark tritt die Hilfe gegen das Pendeln der Nase (0 = gar nicht, so war es bis 25.11.2026)
+const PEDAL_VOLL = 0.3;       // ab so viel eigenem Pedal hält die Hilfe die Kugel gar nicht mehr in der Mitte
 
 // Was sich die Hilfe von Bild zu Bild merkt, liegt hier und nicht im Flugzeug: Die Physik soll davon nichts wissen.
 const MERK = new WeakMap();
@@ -32,20 +35,27 @@ export function mitHilfe(e, f, stufe, dt) {
     }
     // Beim Rollen und Starten bleiben die Flügel gerade; im Seitenwind hält die Hilfe die Fläche unten
     a.quer = clamp(-f.roll * 3 - f.w[2] * 0.6, -1, 1);
-  } else if (Math.abs(a.seite) < 0.05) {
+  } else {
     h.kurs = undefined;
     // In der Luft: so viel Seitenruder, dass das Flugzeug nicht schiebt (die Kugel bleibt in der Mitte).
     // Was dauerhaft fehlt (der Propeller zieht die Nase nach links), merkt sich die Hilfe und hält es von allein.
-    h.seite = clamp((h.seite || 0) + f.schiebe * 1.5 * dt, -0.5, 0.5);
-    a.seite = clamp(2.2 * f.schiebe + h.seite + 0.35 * a.quer, -1, 1);
+    // Tritt der Pilot selbst ins Pedal, will er schieben (Seitenwind-Landung): Dann lässt die Hilfe Kugel und Nase in Ruhe (frei → 0).
+    // Sie verschwindet aber nicht mehr ganz und springt beim Loslassen nicht zurück – was der Pilot tritt, kommt einfach dazu.
+    const frei = 1 - clamp(Math.abs(e.seite) / PEDAL_VOLL, 0, 1), fuss = fussKraft(f.T, f.ias);
+    h.seite = clamp((h.seite || 0) + frei * f.schiebe * 1.5 * dt, -0.5, 0.5);
+    // Gier-Dämpfung: Pendelt die Nase hin und her, tritt die Hilfe gegen die Drehung – so wie ein Pilot mit den Füßen das Pendeln
+    // beruhigt. Die Drehung, die zu einer sauberen Kurve gehört (kurve), zählt dabei nicht mit, sonst würde die Hilfe jede Kurve bremsen.
+    const kurve = G * Math.sin(f.roll) / Math.max(20, f.tas || 20), pendeln = -f.w[1] - kurve;
+    // Bei viel Fahrt schafft der Fuß nur einen Teil des Ausschlags (fussKraft): Die Hilfe tritt entsprechend weiter, damit dasselbe herauskommt.
+    a.seite = clamp(e.seite + frei * (2.2 * f.schiebe + 0.35 * a.quer - GIER_DAEMPF * pendeln + h.seite) / fuss, -1, 1);
     // Das Seitenruder sitzt hoch am Heck und rollt das Flugzeug deshalb ein wenig mit. Weil die Hilfe das Seitenruder
     // dauernd hält (gegen den Propeller), gleicht sie dieses Rollen mit etwas Querruder aus – sonst kippt das Flugzeug langsam weg.
     const T = f.T;
     // Und noch etwas gleicht sie aus: Dreht das Flugzeug in einer Kurve, ist der äußere Flügel schneller und hebt sich weiter.
     // Ohne Hilfe bremst das Schieben dieses Aufschaukeln – das Schieben nimmt die Hilfe aber gerade weg.
     const gierRoll = T.clGier * (-f.w[1]) * T.spann / (2 * Math.max(15, f.tas || 15));
-    a.quer = clamp(a.quer + (T.clSeite * a.seite * T.ruderMax.seite - clamp(gierRoll, -0.03, 0.03)) / (T.clQuer * T.ruderMax.quer), -1, 1);
-    if (Math.abs(e.quer) < 0.05) a.quer = clamp(a.quer - 0.08 * f.roll, -1, 1);       // losgelassen: ganz sanft zurück, so wie es das Schieben sonst täte
+    a.quer = clamp(a.quer + (T.clSeite * (a.seite - e.seite) * T.ruderMax.seite * fuss - frei * clamp(gierRoll, -0.03, 0.03)) / (T.clQuer * T.ruderMax.quer), -1, 1);
+    if (Math.abs(e.quer) < 0.05) a.quer = clamp(a.quer - frei * 0.08 * f.roll, -1, 1);       // losgelassen: ganz sanft zurück, so wie es das Schieben sonst täte
   }
   if (stufe === 'leicht' && !f.amBoden) {
     // Trimmung wandert langsam dem Knüppel nach: Wer die Nase lange irgendwo hinhält, muss bald nicht mehr drücken oder ziehen.

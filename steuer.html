@@ -37,8 +37,14 @@
   #gasFeld { position: relative; flex: 3; border: 2px solid #3b4a59; border-radius: 12px; background: #1a232d; overflow: hidden; min-height: 0; }
   #gasBalken { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(#f0a53a, #b9541e); }
   #gasText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; text-shadow: 0 1px 3px #000; pointer-events: none; }
-  #fuss { grid-column: 1 / 4; display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; height: 19vh; min-height: 54px; }
+  #fuss { grid-column: 1 / 4; display: grid; grid-template-columns: 2.4fr 1fr; gap: 8px; height: 19vh; min-height: 54px; }
   #fuss button { font-size: 18px; }
+  /* Seitenruder als Schieber: Wo der Daumen aufsetzt, ist die Mitte. Je weiter man schiebt, desto mehr Ruder. Loslassen = Mitte. */
+  #pedalFeld { position: relative; border: 2px solid #3b4a59; border-radius: 12px; background: #1a232d; overflow: hidden; }
+  #pedalFeld.unten { border-color: #6db3f5; }
+  #pedalMitte { position: absolute; left: 50%; top: 12%; bottom: 12%; width: 2px; margin-left: -1px; background: #3b4a59; }
+  #pedalKnopf { position: absolute; left: 50%; top: 14%; bottom: 14%; width: 15%; margin-left: -7.5%; border-radius: 10px; background: #2f7fd1; border: 2px solid #6db3f5; }
+  #pedalText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #e9eef3; text-shadow: 0 1px 3px #000; pointer-events: none; z-index: 1; }
 </style>
 </head>
 <body>
@@ -80,9 +86,8 @@
     <div id="gasFeld"><div id="gasBalken"></div><div id="gasText">Gas 0 %</div></div>
   </div>
   <div id="fuss">
-    <button id="bLinks">◀ Seitenruder links</button>
+    <div id="pedalFeld"><div id="pedalMitte"></div><div id="pedalKnopf"></div><div id="pedalText">◀ Seitenruder ▶ · Daumen auflegen und schieben</div></div>
     <button id="bBremse">Bremse</button>
-    <button id="bRechts">Seitenruder rechts ▶</button>
   </div>
 </div>
 <script type="module" src="js/steuerseite.js"></script>
