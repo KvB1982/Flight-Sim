@@ -116,6 +116,7 @@ function los(lektion) {
   } else { melde(s.text, 'info', 9); melde(luft.text + ' · Hilfen: ' + E.hilfe, 'info', 7); }
   malePanels();
   klang.stumm = !E.ton; klang.start();
+  klang.ladeVor('ansage/'); if (l) klang.ladeVor(`jule/${l.id}_`); if (plan) klang.ladeVor('info/');      // Aufnahmen der Stimmen schon holen
   if (neigung.an) neigung.mitte();
   empfang.senden({ k: 'mitte' });
   window.__flugsim.f = f;
@@ -140,7 +141,7 @@ function menue() {
   $('ergebnis').classList.remove('an'); $('schule').classList.remove('an'); document.body.classList.remove('in-schule'); $('menue').classList.remove('zu');
   maleMenue();
 }
-const stimmeAus = () => { try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) { /* egal */ } };
+const stimmeAus = () => klang.still();
 
 // ---------------------------------------------------------------- Flugschule: was die Lehrerin sagt, die Aufgabe, das Ergebnis
 function schuleSchritt(sek) {
@@ -149,7 +150,7 @@ function schuleSchritt(sek) {
   for (const s of u.sagen.splice(0)) {
     // Ein neuer Auftrag unterbricht, was sie gerade noch sagt – sonst hinkt die Stimme hinterher
     if (s.art !== 'warn') stimmeAus();
-    klang.sprich(s.text);
+    klang.sprich(s.text, 'jule');
     $('sLehrer').textContent = s.text; $('sLehrer').className = s.art; lehrerZeit = 6 + s.text.length * 0.07;
     if (s.art === 'warn') marken.push({ x: f.p[0], z: f.p[2], text: s.text });
   }
@@ -320,7 +321,7 @@ function maleSchilder(W, H) {
 }
 
 // ---------------------------------------------------------------- Überlandflug: Navi, Funk, Karte im Flug (js/reiseansicht.js), Auswertung
-const ansicht = new ReiseAnsicht({ melde, sprich: t => klang.sprich(t), stimmeAus, druecke: k => eingabe.druecke(k), pause: () => pause, offen: () => ergebnisAuf, ende: () => zeigeReise() });
+const ansicht = new ReiseAnsicht({ melde, sprich: (t, wer, ersatz) => klang.sprich(t, wer, ersatz), stimmeAus, druecke: k => eingabe.druecke(k), pause: () => pause, offen: () => ergebnisAuf, ende: () => zeigeReise() });
 eingabe.ziffer = n => !!reise && ansicht.ziffer(n);       // im Überlandflug gehören die Ziffern dem Funk und dem Funkfeuer, nicht dem Gas
 // Auswertung: Eintrag ins Flugbuch, dann fünf Sterne und die Karte. Beim ganzen Überlandflug zählen auch die Checklisten,
 // und das Flugzeug merkt sich, was im Tank bleibt.
@@ -382,7 +383,7 @@ function bild(sek, ohneBild) {
       const h = eingabe.handyAn && eingabe.handy, roh = h ? [+h.rg || 0, +h.ng || 0] : neigung.an ? [neigung.rollGrad || 0, neigung.nickGrad || 0] : null;
       rek.schritt(f, { e, a: nachHilfe, funk: h ? eingabe.funk : null, roh, hilfe: hilfeJetzt(), womit: eingabe.womit, raffer: mal > 1 });
     }
-    if (flug.ruf) { klang.sprich(flug.ruf); flug.ruf = null; }
+    if (flug.ruf) { klang.sprich(flug.ruf, 'ansage'); flug.ruf = null; }
     if (unterricht) schuleSchritt(sek);
     if (ablauf) ganzSchritt(sek);
     if (reise) ansicht.schritt(f, sek * mal, flug, ablauf);

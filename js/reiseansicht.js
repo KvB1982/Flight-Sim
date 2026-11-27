@@ -108,7 +108,7 @@ export class ReiseAnsicht {
     for (const s of F.sagen.splice(0)) {
       this.verlauf.push(s); if (this.verlauf.length > 3) this.verlauf.shift();
       this.funkZahl++; this.funkZeit = 14; this.funkTipp = s.tipp || '';
-      if (s.wer === 'Info') { d.stimmeAus(); d.sprich(laut(s.text)); }
+      if (s.wer === 'Info') { d.stimmeAus(); d.sprich(s.text, 'info', laut(s.text)); }
     }
     if (!F.frage) { this.funkZeit -= sek; if (this.funkZeit <= 0 && this.verlauf.length) { this.verlauf = []; this.funkZahl++; } }
     const stand = [F.nr, F.stufe, !!F.frage, this.funkZahl].join();

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'www');
 // Neue Ordner mit Spieldateien müssen hier in die Liste.
-const FILES = ['index.html', 'steuer.html', 'css', 'js', 'lib', 'icons'];
+const FILES = ['index.html', 'steuer.html', 'css', 'js', 'lib', 'icons', 'sprache'];
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out);

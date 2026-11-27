@@ -27,6 +27,7 @@ node tools/ablauf.mjs           # Der ganze Flug: ein künstlicher Pilot macht A
 node tools/ueberland.mjs        # Überlandflug: Gegend (alle Plätze eben, Anflüge frei), Flugplaner, Funkfeuer, fünf Flüge mit dem künstlichen Piloten (Funk, Zeitraffer, Landung am Ziel), ein ganzer Flug vom geparkten Flugzeug bis zum Abstellen am Ziel, Sterne, Folgen von Fehlern, Funk mit festem Zufall; `laut` zeigt den Verlauf, `nur=dreieck|wind|gross|inn|ohlstadt|ganz` nur einen Flug
 node tools/rekorder.mjs selbst   # Flugrekorder: ein künstlicher Pilot fliegt, der Rekorder schreibt mit, Auswerten und Nachfliegen werden geprüft
 node tools/rekorder.mjs flug.json.gz   # Bericht über einen echten Flug aus dem Flugrekorder (`hilfe=mittel` = dieselben Eingaben mit anderer Hilfe nachfliegen, `marke=1` oder `t=120` = eine Stelle Zeile für Zeile)
+node tools/sprache.mjs          # Stimmen: listet alle gesprochenen Sätze und sagt, welche Aufnahme fehlt oder veraltet ist (`json` = Liste der fehlenden, `neu` = sprache/liste.js neu schreiben, `aufraeumen` = übrige Dateien löschen, `streng` = Fehler, wenn etwas fehlt)
 node tools/trimm.mjs            # sucht Trimmung und Gas für Steigflug, Reise, Platzrunde, Anflug (die Zahlen stehen in STARTS in js/starts.js)
 ```
 
@@ -63,7 +64,7 @@ Gerechnet wird in Metern und m/s, angezeigt in Knoten und Fuß (`KN`, `FT` in `j
 | `js/welt.js` | Die Welt in 3D: Himmel, Wolken, Gelände, Bahn mit Zahlen, Rollweg, Vorfeld, Halle und Turm, Windsack, PAPI-Lampen (wachsen mit dem Abstand, damit man sie von weitem sieht), Bäume, Dorf |
 | `js/flugzeugbau.js` | Die Lerche aus einfachen Formen, Ruder, Klappen und Propeller bewegen sich |
 | `js/instrumente.js` | Gemaltes Instrumentenbrett (Fahrtmesser, Horizont, Höhenmesser, Wendezeiger mit Kugel, Kurskreisel, Variometer, Drehzahl, Klappen/Trimmung/Tank) und das HUD der Außenansichten |
-| `js/klang.js` | Motor, Wind, Abriss-Warnton, Aufsetzen (alles selbst erzeugt), Höhenansagen über die Sprachausgabe |
+| `js/klang.js` | Motor, Wind, Abriss-Warnton, Aufsetzen (alles selbst erzeugt), dazu die Stimmen aus Aufnahmen (siehe Abschnitt „Stimmen“) |
 | `js/main.js` | Menü, Flugschule, der ganze Flug, Spiel-Schleife |
 | `js/kamera.js` | Kameras: Cockpit, hinter dem Flugzeug, vom Turm, zu Fuß (`Kamera`) |
 | `js/tempo.js` | Tempo-Wächter: weniger Bildpunkte, wenn Bilder zu lange dauern (`TempoWaechter`) |
@@ -155,6 +156,16 @@ nur tritt ein Pilot dabei von allein ins Seitenruder, und am Handy hat man keine
   nach dem Neuladen noch da) und der Weg der App mit nachgemachten Plugins. **Nicht geprüft:** echtes iPhone und iPad, das Teilen-Blatt in der App (die beiden Plugins sind hier nie gebaut worden),
   Funk-Zahlen über echtes Multipeer, ein langer Flug auf dem Gerät (Speicher). Die Schwellen im Bericht (was als Schwingung, Zittern, Aufschaukeln gilt) sind geschätzt.
 - Nebenbei gesehen: Der künstliche Pilot in „Echt“ (nur Querruder, 0,2 s Verspätung) schaukelt sich nach einem Tritt ins Pedal bei 70 kn mit dem Flugzeug auf (alle 5,6 s, bis 18° Schieben). Ob das Menschen auch passiert, soll die erste echte Aufzeichnung zeigen.
+
+## Stimmen (seit 27.11.2026, Wunsch von Kristian: Aufnahmen wie im Reitturnier und in Powershot, Funk „in einem entsprechenden Funk-Stil“)
+
+- Alles, was im Spiel gesprochen wird, hat eine Aufnahme aus 3D AI Studio (`generate_speech`, eingebaute Stimmen, Sprache `de`): 97 kleine MP3 (Mono, 32 kHz, zusammen 3 MB) in `sprache/jule/` (Fluglehrerin, Stimme „Matilda“, 56 Sätze), `sprache/info/` (Flugleiter am Funk, Stimme „George“, 37 Stücke) und `sprache/ansage/` (Höhen-Ansage „Einhundert, Fünfzig, Zwanzig, Zehn“, Stimme „River“).
+- `sprache/liste.js` (`SPRACHE`: Name → genauer Text, geschrieben von `tools/sprache.mjs neu`), `js/sprache.js` (`teileVon(wer, text)` zerlegt einen Text in Aufnahmen). Abgespielt wird nur, wenn der Text **genau** aus Aufnahmen zusammensetzbar ist – wer einen Satz ändert, hört wieder die Stimme des Geräts, bis neu aufgenommen ist. Das Prüfwerkzeug (`streng`, läuft auf GitHub mit) meldet das.
+- Jule: ein Satz = eine Aufnahme (`<lektion>_<nr>` für die Aufträge, sonst ein Name aus den ersten Wörtern; Höhen in Sätzen mit `${soll}` gibt es für 1000, 2000, 3000 Fuß). Gesprochen wird „Bahn drei sechs“ (`juleLaut` im Werkzeug).
+- Flugleiter: Ein Funkspruch wird aus Stücken zusammengesetzt (`funkStuecke` in `js/funk.js`: Kennzeichen, „<Platz> Info“, „Piste zwo fünf“, Wind, QNH …), dazwischen `LUECKE` 0,07 s. Neuer Flugplatz, neue Bahn oder neues Wetter = neue Stücke aufnehmen. Was der Pilot selbst funkt (die Antworten zum Antippen), wird nicht gesprochen.
+- `js/klang.js`: `sprich(text, wer, ersatz)` mit `wer` = `jule` / `info` / `ansage` (Warteschlange; die Höhen-Ansage kommt sofort), `still()`, `ladeVor(anfang)`. Der Flugleiter läuft durch ein nachgemachtes Funkgerät (`funkBauen`: Tiefen und Höhen weg `FUNK_TIEF`/`FUNK_HOCH`, Kratzen `FUNK_KRATZEN`, Rauschen `FUNK_RAUSCHEN`, Klick beim Auf- und Zugehen `FUNK_KLICK`); Lautstärken `STIMME_LAUT`. Jule und die Ansage klingen pur.
+- Neue Aufnahmen: `node tools/sprache.mjs json` → je Eintrag `generate_speech` mit `laut`, Stimme und `fest` (stability) → Roh-Dateien nach `<ordner>/<wer>/<name>.mp3` → `python3 tools/sprache_bau.py <ordner>` (Stille weg, gleich laut, klein; braucht ffmpeg) → `node tools/sprache.mjs neu`. Die Roh-Dateien liegen in den Projektdateien `flugsim/stimmen/roh/`. Der Cloud-Rechner darf von `s.3daistudio.com` nichts laden – das Herunterladen lief über Kristians Mac.
+- **Angehört hat die Aufnahmen noch niemand.** Geprüft: Länge jeder Aufnahme passt zur Textlänge, `tools/sprache.mjs streng` (jeder Satz und jeder mögliche Funkspruch ist zusammensetzbar), im Test-Browser Lektion „Rollen“ und ein Überlandflug: Aufnahmen werden geladen und in der richtigen Reihenfolge gestartet, die Gerätestimme bleibt still. Nicht geprüft: ob jede Aufnahme das Richtige sagt, Aussprache (Ortsnamen, „zwo“, „Q N H“), wie die zusammengesetzten Funksprüche klingen (jedes Stück hat seine eigene Satzmelodie), ob der Funk-Klang gefällt und verständlich bleibt, Lautstärke gegen den Motor, iPad und iPhone. Alle Zahlen geschätzt.
 
 ## Bekannte Grenzen (Stand 22.11.2026)
 

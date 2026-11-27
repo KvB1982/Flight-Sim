@@ -13,6 +13,26 @@ export const RUF = 'D-ELRC', RUF_LAUT = 'Delta Echo Lima Romeo Charlie';
 // So spricht die Stimme einen Spruch: Kennzeichen buchstabiert, Bahn-Zahlen einzeln („zwo fünf“)
 const ZIFFER = ['null', 'eins', 'zwo', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'];
 export const laut = text => text.replaceAll(RUF, RUF_LAUT).replace(/Piste (\d)(\d)/g, (m, a, b) => `Piste ${ZIFFER[a]} ${ZIFFER[b]}`).replace(/QNH (\d)(\d)(\d)(\d)/g, (m, a, b, c, d) => `Q N H ${ZIFFER[a]} ${ZIFFER[b]} ${ZIFFER[c]} ${ZIFFER[d]}`);
+// Aus diesen Stücken setzt der Flugleiter seine Sprüche zusammen. Für jedes Stück gibt es eine Aufnahme
+// (sprache/info/<name>.mp3, siehe tools/sprache.mjs): text = so steht es im Funkspruch, laut = so wird es gesprochen.
+// plaetze = die Flugplätze aus region.js, winde = alle Wind-Texte, die vorkommen können (aus windText).
+const ZAHL = ['null', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn', 'zwanzig'];
+export function funkStuecke(plaetze, winde) {
+  const z = t => t.replace(/\d/g, d => ZIFFER[d] + ' ').trim(), kurz = n => n.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '_');
+  const s = [{ name: 'ruf', text: RUF, laut: RUF_LAUT + ',' }, { name: 'qnh', text: 'QNH 1013', laut: 'Q N H eins null eins drei,' },
+    { name: 'kein_verkehr', text: 'Kein Verkehr gemeldet', laut: 'Kein Verkehr gemeldet.' }, { name: 'in_betrieb', text: 'in Betrieb', laut: 'in Betrieb,' },
+    { name: 'platzrunde', text: 'Platzrunde links herum', laut: 'Platzrunde links herum.' }, { name: 'piste_frei', text: 'Piste frei', laut: 'Piste frei,' },
+    { name: 'wiederhoeren', text: 'auf Wiederhören und guten Flug', laut: 'auf Wiederhören und guten Flug!' },
+    { name: 'wiederholen', text: 'bitte wiederholen Sie', laut: 'bitte wiederholen Sie.' }, { name: 'negativ', text: 'negativ, ich wiederhole', laut: 'negativ, ich wiederhole.' }];
+  const bahnen = new Set();
+  for (const P of plaetze) {
+    s.push({ name: 'info_' + P.id, text: `${P.name} Info`, laut: `${P.name} Info,` }, { name: 'willkommen_' + P.id, text: `willkommen in ${P.name}`, laut: `willkommen in ${P.name}!` });
+    P.bahnen.forEach(b => bahnen.add(b));
+  }
+  for (const b of [...bahnen].sort()) s.push({ name: 'piste_' + b, text: `Piste ${b}`, laut: `Piste ${z(b)},` });
+  for (const w of new Set(winde)) s.push({ name: kurz(w), text: w, laut: w.replace(/(\d+) Grad/, (m, g) => z(g) + ' Grad').replace(/(\d+) Knoten/, (m, k) => (ZAHL[k] || k) + ' Knoten') + ',' });
+  return s;
+}
 const HIMMEL = ['nördlich', 'nordöstlich', 'östlich', 'südöstlich', 'südlich', 'südwestlich', 'westlich', 'nordwestlich'];
 // In welcher Himmelsrichtung vom Platz ist das Flugzeug? (+x ist Westen)
 export const richtungVon = (P, x, z) => HIMMEL[Math.round(((Math.atan2(-(x - P.mx), z - P.mz) / GRAD) % 360 + 360) % 360 / 45) % 8];
