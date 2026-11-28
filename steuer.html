@@ -31,9 +31,13 @@
   #zahlen { display: flex; gap: 22px; font-variant-numeric: tabular-nums; }
   #zahlen div { text-align: center; } #zahlen b { display: block; font-size: 34px; line-height: 1; } #zahlen small { color: #a9b6c2; }
   #warn { height: 1.4em; font-weight: 700; color: #ff8a7a; }
-  #kreuz { position: relative; width: min(38vh, 30vw); aspect-ratio: 1; border: 2px solid #3b4a59; border-radius: 14px; background:
+  #kreuz { position: relative; width: min(30vh, 26vw); aspect-ratio: 1; border: 2px solid #3b4a59; border-radius: 14px; background:
            linear-gradient(#3b4a59, #3b4a59) 50% 0 / 1px 100% no-repeat, linear-gradient(#3b4a59, #3b4a59) 0 50% / 100% 1px no-repeat, #1a232d; }
   #punkt { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px; border-radius: 50%; background: #ffc861; box-shadow: 0 0 8px #ffc861; }
+  /* Autopilot: drei Knöpfe, jeder schaltet einen Teil an und aus (grün = er hält gerade) */
+  #apReihe { display: flex; gap: 6px; align-self: stretch; justify-content: center; }
+  #apReihe button { flex: 1; max-width: 9em; padding: 7px 2px; font-size: 14px; white-space: nowrap; }
+  #apReihe button.haelt { background: #1c6b3a; border-color: #5fd07a; font-weight: 700; }
   #gasFeld { position: relative; flex: 3; border: 2px solid #3b4a59; border-radius: 12px; background: #1a232d; overflow: hidden; min-height: 0; }
   #gasBalken { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(#f0a53a, #b9541e); }
   #gasText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; text-shadow: 0 1px 3px #000; pointer-events: none; }
@@ -82,6 +86,7 @@
     </div>
     <div id="warn"></div>
     <div id="kreuz"><div id="punkt"></div></div>
+    <div id="apReihe"><button id="bApH">AP Höhe</button><button id="bApK">AP Kurs</button><button id="bApT">AP Tempo</button></div>
   </div>
   <div class="spalte">
     <div id="gasFeld"><div id="gasBalken"></div><div id="gasText">Gas 0 %</div></div>

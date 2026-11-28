@@ -27,6 +27,7 @@ import { baueTouch } from './touch.js';
 import { Klang } from './klang.js';
 import { Kamera } from './kamera.js';
 import { TempoWaechter } from './tempo.js';
+import { Autopilot, TEILE } from './autopilot.js';
 import { Rekorder, merkeFlug, ladeFluege, ladeFlug, loescheFlug, teile } from './rekorder.js';
 
 const THREE = window.THREE;
@@ -53,6 +54,8 @@ let unterricht = null, spur = [], spurZeit = 0, marken = [], endeZeit = 0, lehre
 let ablauf = null, geher = null, brettAuf = false, listeAuf = true, panelStand = '';
 // Der Flugrekorder schreibt jeden Flug mit (js/rekorder.js). nachHilfe = was zuletzt nach der Hilfe ans Flugzeug ging, pingZeit = wann der Funk wieder gemessen wird
 const rek = new Rekorder(); let nachHilfe = null, pingZeit = 0, rekWas = '';
+// Der Autopilot (js/autopilot.js): hält auf Wunsch Höhe, Kurs und Tempo, jedes einzeln. apAuf = ist sein Kasten aufgeklappt?
+const ap = new Autopilot(); let apStand = '', apAuf = false;
 // Welche Hilfe gilt gerade? Manche Lektion braucht mindestens „mittel“ (beim Abriss muss der Schutz aus sein).
 const hilfeJetzt = () => unterricht && unterricht.l.hilfeMin && STUFEN.indexOf(E.hilfe) < STUFEN.indexOf(unterricht.l.hilfeMin) ? unterricht.l.hilfeMin : E.hilfe;
 // Welcher Flugweg in der Luft gehört zu diesem Flug? In der Lektion sagt es die Lektion, sonst der Startort.
@@ -77,6 +80,7 @@ function los(lektion) {
   const park = !!plan && E.reiseStart !== 'bahn', ganz = lektion === 'ganz' || park;
   // In der Flugschule ist immer ruhiges Wetter. Eine Lektion beginnt an einem der Startorte oder schon in der Luft.
   const s = l ? { lage: l.lage || STARTS[l.start].lage } : plan ? { lage: {} } : ganz ? STARTS.vorfeld : STARTS[E.start];
+  ap.neu(); apAuf = false;
   unterricht = l ? new Unterricht(l) : null; spur = []; spurZeit = 0; marken = []; endeZeit = 0; lehrerZeit = 0; ergebnisAuf = false;
   const zustand = ganz ? ladeZustand(localStorage) : null;
   reise = plan ? new Reise(plan, WETTER[E.wetter], { navi: E.navi, ganz: park }) : null;
@@ -136,7 +140,7 @@ function rekEnde(grund, mehr) {
 }
 function menue() {
   rekEnde('menü');
-  pause = true; imMenue = true; reise = null; ansicht.neu(null, null); unterricht = null; ablauf = null; geher = null; brettAuf = false; ergebnisAuf = false;
+  ap.neu(); pause = true; imMenue = true; reise = null; ansicht.neu(null, null); unterricht = null; ablauf = null; geher = null; brettAuf = false; ergebnisAuf = false;
   malePanels(); stimmeAus();
   $('ergebnis').classList.remove('an'); $('schule').classList.remove('an'); document.body.classList.remove('in-schule'); $('menue').classList.remove('zu');
   maleMenue();
@@ -204,6 +208,11 @@ eingabe.wenn = {
   neu() { menue(); },
   karte() { ansicht.karteUm(); },
   raffer() { if (!reise || pause || reise.fertig) return; if (reise.raffer) reise.rafferAus('Zeitraffer aus.'); else reise.rafferAn(f); },
+  // Autopilot: ein Teil an oder aus, Ziel verstellen (für den Teil, den man zuletzt angefasst hat), alles aus
+  apHoehe() { apSchalte('hoehe'); }, apKurs() { apSchalte('kurs'); }, apTempo() { apSchalte('tempo'); },
+  apMinus() { apStelle(ap.gewaehlt, -1); }, apPlus() { apStelle(ap.gewaehlt, 1); },
+  apKasten() { apAuf = !apAuf; },
+  apAus() { if (ap.aktiv) ap.alleAus('Autopilot aus: Du fliegst wieder selbst.', 'info'); },
   hilfe() { E.hilfe = STUFEN[(STUFEN.indexOf(E.hilfe) + 1) % STUFEN.length]; merke(); melde(STUFEN_TEXT[E.hilfe], 'info', 4); }
 };
 empfang.wennDaten = m => eingabe.vomHandy(m);
@@ -221,6 +230,43 @@ empfang.wennZustand = z => {
   }
   maleMenue();
 };
+
+// ---------------------------------------------------------------- Autopilot: der Kasten am linken Rand (Maus und Finger), Tasten F6 bis F10
+// In der Flugschule bleibt er aus: Dort soll man es selbst lernen. Zu Fuß und im Menü gibt es ihn nicht.
+const apGeht = () => !imMenue && !geher && !ergebnisAuf && !pause;
+function apSchalte(was) {
+  if (!apGeht()) return;
+  if (unterricht) { melde('In der Flugschule fliegst du selbst – der Autopilot bleibt aus.', 'info', 4); return; }
+  ap.schalte(was, f); apAuf = true;
+}
+function apStelle(was, r) { if (!apGeht() || unterricht) return; ap.stelle(was, r, f); apAuf = true; }
+{
+  // Der Kasten wird einmal gebaut: je Teil ein großer Knopf (an / aus, mit dem Ziel) und − und ＋. Wer − oder ＋ hält, zählt schnell weiter.
+  const zeilen = $('apZeilen');
+  for (const k of TEILE) {
+    const z = document.createElement('div'), b = document.createElement('button'), m = document.createElement('button'), p = document.createElement('button');
+    z.className = 'apZeile'; b.id = 'ap_' + k; b.className = 'apTeil'; m.className = p.className = 'apPm'; m.textContent = '−'; p.textContent = '＋'; m.id = 'apM_' + k; p.id = 'apP_' + k;
+    b.onclick = () => { b.blur(); apSchalte(k); };
+    for (const [knopf, r] of [[m, -1], [p, 1]]) {
+      let lauf = null, warte = null;
+      const stopp = () => { clearTimeout(warte); clearInterval(lauf); warte = lauf = null; };
+      knopf.addEventListener('pointerdown', ev => { ev.preventDefault(); stopp(); apStelle(k, r); warte = setTimeout(() => { lauf = setInterval(() => apStelle(k, r), 60); }, 400); });
+      for (const was of ['pointerup', 'pointercancel', 'pointerleave']) knopf.addEventListener(was, stopp);
+    }
+    z.append(b, m, p); zeilen.appendChild(z);
+  }
+  $('apKopf').onclick = () => { $('apKopf').blur(); eingabe.druecke('apKasten'); };
+  $('apAus').onclick = () => eingabe.druecke('apAus');
+}
+function maleAp() {
+  const zeigen = !imMenue && !geher && !ergebnisAuf && !unterricht, s = ap.stand();
+  const stand = JSON.stringify([zeigen, apAuf, s, ap.gewaehlt]);
+  if (stand === apStand) return; apStand = stand;
+  $('ap').classList.toggle('an', zeigen); $('ap').classList.toggle('auf', apAuf); $('ap').classList.toggle('aktiv', ap.aktiv);
+  $('apKopf').textContent = (apAuf ? '▾ ' : '▸ ') + 'Autopilot' + (touch && apAuf ? '  ✕' : '') + (ap.aktiv && !apAuf ? ': ' + s.filter(x => x.an).map(x => x.name + ' ' + x.text).join(' · ') : '');
+  for (const x of s) { const b = $('ap_' + x.id); b.textContent = `${x.name} ${x.an ? x.text : 'aus'}`; b.classList.toggle('an', x.an); b.parentNode.classList.toggle('wahl', ap.gewaehlt === x.id); }
+  $('apAus').style.display = ap.aktiv ? '' : 'none';
+}
 
 // ---------------------------------------------------------------- Der ganze Flug: Checkliste am Rand, Schalterbrett, Rundgang, Flugbuch
 function ganzSchritt(sek) {
@@ -366,16 +412,19 @@ function bild(sek, ohneBild) {
   if (window.__flugsim.pilot && !pause) e = window.__flugsim.pilot(f, sek, unterricht) || e;      // nur zum Testen: ein künstlicher Pilot fliegt
   if (!pause) {
     f.trimm = Math.max(-1, Math.min(1, f.trimm + eingabe.trimm * 0.25 * sek));
+    if (!geher && !unterricht) ap.pruefe(f, e, sek);        // Autopilot: Fliegt der Pilot wieder selbst? Geht es überhaupt noch?
     const mal = reise && reise.raffer ? RAFFER : 1;        // im Zeitraffer läuft die Zeit schneller: mehr Rechenschritte je Bild
     rest = Math.min(rest + sek * mal, 0.1 * mal);
     while (rest >= TAKT) {
       const warBoden = f.amBoden, n = f.ereignisse.length;
-      nachHilfe = mitHilfe(reise ? reise.steuer(f, e, TAKT) : e, f, hilfeJetzt(), TAKT, true);
+      nachHilfe = mitHilfe(ap.steuer(f, reise ? reise.steuer(f, e, TAKT) : e, TAKT, hilfeJetzt()), f, hilfeJetzt(), TAKT, true);
       schritt(f, sysRuder(nachHilfe, f), TAKT, umwelt); sysSchritt(f, e, TAKT);
       if (f.ereignisse.length > n) { const a = f.ereignisse[f.ereignisse.length - 1]; klang.rumms(a.sink); empfang.senden({ k: 'r', s: a.sink > 1.8 ? 'schwer' : 'leicht' }); }
       if (warBoden && !f.amBoden && f.hoeheGrund > 0.3 && !flug.abgehoben) { flug.abgehoben = true; }
       rest -= TAKT;
     }
+    ap.fertig(e);                                           // der Gashebel steht jetzt dort, wo der Autopilot ihn hingeschoben hat
+    for (const m of ap.meldungen.splice(0)) { melde(m.text, m.art, m.art === 'warn' ? 7 : 5); rek.ereignis(f, 'autopilot', { text: m.text, was: m.art }); if (m.art === 'warn') klang.piep(); }
     flug.schritt(f, sek * mal);
     for (const m of flug.meldungen.splice(0)) { melde(m.text, m.art, m.art === 'info' ? 5 : 9); rek.ereignis(f, 'meldung', { text: m.text, was: m.art }); }
     // Flugrekorder: eine Zeile mit allem, was gerade gesteuert wird und was das Flugzeug macht (zu Fuß beim Außencheck nicht)
@@ -390,13 +439,14 @@ function bild(sek, ohneBild) {
   }
   lerche.stelle(f, pause ? 0 : sek); welt.schritt(f, luft); marken3d.visible = !!geher; if (geher) stelleMarken(); { const w = wegJetzt();
     for (const k in welt.wege) welt.wege[k].visible = !!E.weg && k === w; } kam.stelle(sek, f, geher); if (!ohneBild) { welt.male(); maleAnzeigen(); } klang.schritt(f, pause);
-  if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher, !!reise);
+  maleAp();
+  if (touch) touch.zeige(neigung.an, eingabe.handyAn, !!ablauf, !!geher, !!reise, unterricht ? null : ap.aktiv);
   empfang.pruefen();
   // Einmal pro Sekunde ein „Ping“ ans Handy: Es schickt ihn sofort zurück, daran sieht der Flugrekorder die Verspätung des Funks.
   pingZeit -= sek; if (pingZeit <= 0 && empfang.verbunden) { pingZeit = 1; empfang.senden({ k: 'p', t: performance.now() }); }
   infoZeit -= sek;
   if (infoZeit <= 0 && empfang.verbunden) { infoZeit = 0.1;
-    empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2) }); }
+    empfang.senden({ k: 'i', ias: Math.round((f.iasZeigt ?? f.ias) / KN), hoehe: Math.round(f.hoeheGrund / FT), klappen: f.T.klappen[f.klappenStufe], boden: f.amBoden ? 1 : 0, abriss: f.abriss > 0.3 ? 1 : 0, gas: +f.gas.toFixed(2), trimm: +f.trimm.toFixed(2), ap: TEILE.map(k => ap.an[k] ? 1 : 0) }); }
 }
 function schleife(t) {
   const sek = Math.min(0.1, (t - zuletzt) / 1000 || 0); zuletzt = t;
@@ -517,7 +567,7 @@ document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
 window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get reise() { return reise;
-  }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; }, rek, maleRekorder };
+  }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; }, rek, ap, maleRekorder };
 if (inApp) empfang.nahStarten();      // in der App wartet das Spiel von Anfang an auf ein iPhone in der Nähe
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }

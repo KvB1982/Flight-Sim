@@ -58,6 +58,8 @@ function vomSpiel(m) {
     $('zTempo').textContent = m.ias; $('zHoehe').textContent = m.boden ? 'Boden' : m.hoehe; $('zKlappen').textContent = m.klappen + '°';
     $('warn').textContent = m.abriss ? '⚠ ZU LANGSAM – Nase runter!' : '';
     // Wer den Gashebel gerade nicht anfasst, sieht das Gas aus dem Spiel (dort kann es auch die Tastatur oder ein neuer Start verstellen)
+    // Autopilot: Welche Teile halten gerade? (Höhe, Kurs, Tempo) – der Knopf wird grün
+    if (Array.isArray(m.ap)) ['bApH', 'bApK', 'bApT'].forEach((id, i) => $(id).classList.toggle('haelt', !!m.ap[i]));
     if (typeof m.gas === 'number' && performance.now() - z.gasZeit > 700) gasZeigen(m.gas);
   } else if (m.k === 'r') {
     if (inApp) ruetteln(m.s === 'schwer' ? 1 : 0.5);      // in der App rüttelt auch das iPhone
@@ -93,6 +95,7 @@ const tipp = a => () => { if (sender) sender.senden({ k: 't', a }); };
 knopf('bKlEin', tipp('klappenEin')); knopf('bKlAus', tipp('klappenAus'));
 knopf('bTrH', tipp('trimmHoch'), tipp('trimmAus')); knopf('bTrR', tipp('trimmRunter'), tipp('trimmAus'));
 knopf('bKamera', tipp('kamera')); knopf('bPause', tipp('pause')); knopf('bMarke', tipp('marke'));      // ❗ = Marke im Flugrekorder: „Hier war es komisch“
+knopf('bApH', tipp('apHoehe')); knopf('bApK', tipp('apKurs')); knopf('bApT', tipp('apTempo'));      // Autopilot: hält, was gerade anliegt. Ziel verstellen geht am Spiel-Bildschirm
 knopf('bMitte', () => neigung.mitte());
 knopf('bStufe', () => { $('bStufe').textContent = '🎚 ' + neigung.stufeWeiter(); });
 $('bStufe').textContent = '🎚 ' + neigung.stufe;
