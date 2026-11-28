@@ -13,6 +13,8 @@ export const TASTEN_HILFE = [
   ['Gamepad / Joystick', 'linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung, Y = Ansicht'],
   ['M / O / 1 2 3', 'Überlandflug: Karte auf und zu / Zeitraffer an und aus / Funkspruch wählen'],
   ['4 / 5 6 / 7', 'Überlandflug: nächstes Funkfeuer einstellen / Kurs am Funkfeuer 5° zurück und vor / Kurs direkt zum Funkfeuer. Im Überlandflug stellen die Ziffern nicht das Gas (dafür W und S)'],
+  ['F6 / F7 / F8', 'Autopilot: Höhe / Kurs / Tempo halten, an und aus (geht auch mit der Maus im Kasten „Autopilot“ links)'],
+  ['F9 / F10, Rücktaste', 'Autopilot: Ziel kleiner / größer (für das, was zuletzt geschaltet wurde) · Autopilot ganz aus. Knüppel kräftig bewegen oder Gas geben schaltet ihn auch aus'],
   ['F2', 'Flugrekorder: Marke setzen („Hier war es komisch“)'],
   ['X / Y / Enter', 'Der ganze Flug: Schalterbrett / Checkliste auf und zu / nächsten Handgriff erledigen. Zu Fuß: Pfeiltasten gehen und drehen'],
 ];
@@ -34,6 +36,9 @@ export class Eingabe {
     this.womit = 'Tastatur';
     window.addEventListener('keydown', ev => {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'PageUp', 'PageDown', 'Enter'].includes(ev.code)) ev.preventDefault();
+      // Autopilot: F6 Höhe, F7 Kurs, F8 Tempo an und aus, F9 / F10 Ziel kleiner und größer (gehalten zählt es weiter), Rücktaste = alles aus
+      const apTaste = { F6: 'apHoehe', F7: 'apKurs', F8: 'apTempo', F9: 'apMinus', F10: 'apPlus', Backspace: 'apAus' }[ev.code];
+      if (apTaste) { ev.preventDefault(); if (!ev.repeat || ev.code === 'F9' || ev.code === 'F10') this.druecke(apTaste); return; }
       if (ev.repeat) return;
       this.taste[ev.code] = true;
       const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer', F2: 'marke' }[ev.code];

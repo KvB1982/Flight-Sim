@@ -50,6 +50,7 @@ export function baueTouch(eingabe, tu) {
   knopf(spalteL, 'Klappen ▲', 'blau', () => eingabe.druecke('klappenEin'));
   knopf(spalteL, 'Bremse', 'rot', () => { eingabe.bremsKnopf = 1; }, () => { eingabe.bremsKnopf = 0; });
   const spalteR = el('div', 't-spalte', '', rechts);
+  const apKnopf = knopf(spalteR, 'Autopilot', 'gruen', () => eingabe.druecke('apKasten'));      // klappt den Autopilot-Kasten auf und zu
   knopf(spalteR, 'Trimm: Nase ▲', '', () => { eingabe.trimmKnopf = 1; }, () => { eingabe.trimmKnopf = 0; });
   knopf(spalteR, 'Trimm: Nase ▼', '', () => { eingabe.trimmKnopf = -1; }, () => { eingabe.trimmKnopf = 0; });
   const stick = knueppel(rechts, eingabe.stick);
@@ -67,7 +68,9 @@ export function baueTouch(eingabe, tu) {
   return {
     wurzel,
     // jedes Bild: Schubhebel nachführen; beim Neigen oder mit dem Handy braucht man den Knüppel auf dem Bildschirm nicht
-    zeige(neigenAn, handyAn, ganzerFlug, zuFuss, ueberland) {
+    zeige(neigenAn, handyAn, ganzerFlug, zuFuss, ueberland, autopilot) {
+      // autopilot: null = gibt es gerade nicht (Flugschule), sonst true = er fliegt gerade mit
+      apKnopf.style.display = autopilot === null ? 'none' : ''; apKnopf.classList.toggle('leuchtet', !!autopilot); apKnopf.textContent = autopilot ? 'Autopilot ✓' : 'Autopilot';
       kartenKnopf.style.display = rafferKnopf.style.display = ueberland ? '' : 'none';
       schalterKnopf.style.display = ganzerFlug && !zuFuss ? '' : 'none'; listeKnopf.style.display = ganzerFlug ? '' : 'none';
       // zu Fuß (Außencheck) braucht man nur den Knüppel zum Gehen: Gashebel, Klappen, Bremse, Trimmung und Pedale verschwinden

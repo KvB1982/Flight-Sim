@@ -43,6 +43,13 @@ export class Klang {
     const nah = !f.amBoden && f.ias > 8 && f.alpha > (f.T.caMax + f.T.caMaxKlappe * f.klappen - f.T.ca0 - f.T.caKlappe * f.klappen) / f.T.caAnstieg - 0.045;
     this.hornLaut.gain.setTargetAtTime(an && nah ? 0.06 : 0, t, 0.02);
   }
+  // zwei kurze Töne: Der Autopilot hat sich abgeschaltet oder warnt – jetzt fliegt der Mensch
+  piep() {
+    if (!this.ctx || this.stumm) return;
+    const c = this.ctx, t = c.currentTime;
+    for (const [ab, hz] of [[0, 880], [0.16, 660]]) { const o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t + ab); g.gain.linearRampToValueAtTime(0.08, t + ab + 0.01); g.gain.linearRampToValueAtTime(0.0001, t + ab + 0.13); o.connect(g); g.connect(this.aus); o.start(t + ab); o.stop(t + ab + 0.15); }
+  }
   // kurzer dumpfer Schlag beim Aufsetzen, lauter bei harter Landung
   rumms(stark) {
     if (!this.ctx || this.stumm) return;

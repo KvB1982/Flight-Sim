@@ -125,3 +125,17 @@ body.mit-liste #meldungen { left: max(10px, env(safe-area-inset-left)); transfor
 #fuAntworten { display: flex; flex-direction: column; gap: 5px; } #fuAntworten button { text-align: left; font-size: 14px; padding: 7px 10px; line-height: 1.3; } #fuAntworten button b { color: #ffc43c; margin-right: 6px; }
 body.mit-touch #funk { bottom: auto; left: 50%; transform: translateX(-50%); top: 56px; width: min(520px, 52vw); } body.mit-touch.mit-funk #meldungen { top: 44%; }
 @media (max-height: 500px) { #funk { font-size: 12px; width: min(360px, 48vw); } #fuAntworten button { font-size: 12px; padding: 4px 8px; } body.mit-touch #funk { top: 46px; } }
+
+/* ---- Autopilot: Kasten am linken Rand. Zugeklappt nur eine kleine Zeile, aufgeklappt drei Zeilen (Höhe, Kurs, Tempo) mit − und ＋ */
+#ap { position: fixed; left: max(10px, env(safe-area-inset-left)); top: 118px; display: none; flex-direction: column; gap: 5px; background: rgba(14, 19, 24, 0.84); border-radius: 10px; padding: 5px; z-index: 5; }
+#ap.an { display: flex; } #ap.aktiv { box-shadow: 0 0 0 2px #5fd07a; }
+#apKopf { padding: 6px 10px; font-size: 14px; text-align: left; border-color: transparent; background: transparent; white-space: nowrap; } #ap.aktiv #apKopf { color: #8fe6a3; font-weight: 600; }
+#apZeilen, #apAus { display: none; } #ap.auf #apZeilen { display: flex; flex-direction: column; gap: 5px; } #ap.auf #apAus { display: block; }
+.apZeile { display: flex; gap: 5px; border-radius: 10px; }
+.apTeil { width: 138px; padding: 8px 8px; font-size: 15px; text-align: left; white-space: nowrap; } .apTeil.an { background: #1c6b3a; border-color: #5fd07a; font-weight: 600; }
+.apPm { width: 44px; padding: 8px 0; font-size: 18px; touch-action: none; } .apZeile.wahl .apPm { border-color: #ffc43c; }
+@media (max-height: 500px) { #ap { top: 84px; } .apTeil { padding: 5px 8px; font-size: 13px; width: 124px; } .apPm { padding: 5px 0; width: 40px; } #apKopf { font-size: 12px; padding: 4px 8px; } }
+.knopf.gruen { border-color: #5fd07a; } .knopf.leuchtet { background: rgba(40, 140, 80, 0.75); font-weight: 600; }
+/* Mit Fingern: Links sitzen Gashebel und Klappen. Dort ist kein Platz, deshalb geht der Kasten mit dem Knopf „Autopilot“ (rechts über der Trimmung) in der Bildmitte auf und wieder zu. */
+body.mit-touch #ap { left: 50%; top: 226px; transform: translateX(-50%); z-index: 7; background: rgba(14, 19, 24, 0.97); } body.mit-touch #ap:not(.auf) { display: none; }
+@media (max-height: 500px) { body.mit-touch #ap { top: 50px; } }
