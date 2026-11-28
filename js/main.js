@@ -116,7 +116,7 @@ function los(lektion) {
   } else { melde(s.text, 'info', 9); melde(luft.text + ' · Hilfen: ' + E.hilfe, 'info', 7); }
   malePanels();
   klang.stumm = !E.ton; klang.start();
-  klang.ladeVor('ansage/'); if (l) klang.ladeVor(`jule/${l.id}_`); if (plan) klang.ladeVor('info/');      // Aufnahmen der Stimmen schon holen
+  klang.ladeVor('ansage/'); if (l) klang.ladeVor(`jule/${l.id}_`); if (plan) { klang.ladeVor('info/'); klang.ladeVor('pilot/'); }      // Aufnahmen der Stimmen schon holen
   if (neigung.an) neigung.mitte();
   empfang.senden({ k: 'mitte' });
   window.__flugsim.f = f;
