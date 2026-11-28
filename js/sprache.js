@@ -1,8 +1,9 @@
 // Flugsimulator – welche Aufnahme gehört zu welchem Satz? Ohne Grafik und ohne Ton, damit auch das Prüfwerkzeug es benutzen kann.
 //
-// Im Ordner sprache/ liegen Aufnahmen von drei Stimmen:
+// Im Ordner sprache/ liegen Aufnahmen von vier Stimmen:
 //   jule/    die Fluglehrerin (alles, was sie in der Flugschule sagt)
 //   info/    der Flugleiter am Funk – in kleinen Stücken („Piste zwo fünf“), aus denen ein Funkspruch zusammengesetzt wird
+//   pilot/   was du selbst funkst – auch in kleinen Stücken
 //   ansage/  die Höhen-Ansage kurz vor dem Aufsetzen („Fünfzig“, „Zwanzig“, „Zehn“)
 // Die Liste sprache/liste.js sagt zu jeder Aufnahme, welcher Text darin gesprochen wird. Sie wird von
 // tools/sprache.mjs geschrieben. Ändert jemand einen Satz im Spiel, passt die Aufnahme nicht mehr – dann liest
