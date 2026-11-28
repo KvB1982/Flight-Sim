@@ -125,3 +125,39 @@ body.mit-liste #meldungen { left: max(10px, env(safe-area-inset-left)); transfor
 #fuAntworten { display: flex; flex-direction: column; gap: 5px; } #fuAntworten button { text-align: left; font-size: 14px; padding: 7px 10px; line-height: 1.3; } #fuAntworten button b { color: #ffc43c; margin-right: 6px; }
 body.mit-touch #funk { bottom: auto; left: 50%; transform: translateX(-50%); top: 56px; width: min(520px, 52vw); } body.mit-touch.mit-funk #meldungen { top: 44%; }
 @media (max-height: 500px) { #funk { font-size: 12px; width: min(360px, 48vw); } #fuAntworten button { font-size: 12px; padding: 4px 8px; } body.mit-touch #funk { top: 46px; } }
+
+/* ---- Unterlagen: Flugplan wie bei den Profis und Flugplatzkarten */
+#bKarten { display: block; width: 100%; margin: 0 0 8px; }
+#unterlagen { position: fixed; inset: 0; display: none; flex-direction: column; background: #121a22; z-index: 12; user-select: text; -webkit-user-select: text; }
+#unterlagen.an { display: flex; }
+#ulKopf { display: flex; gap: 8px; align-items: flex-start; padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(10px, env(safe-area-inset-left)); background: #17202a; border-bottom: 2px solid #33475a; }
+#ulReiter { flex: 1; display: flex; gap: 6px; overflow-x: auto; touch-action: pan-x; padding-bottom: 2px; } #ulReiter button, #ulZu { white-space: nowrap; font-size: 14px; padding: 7px 11px; }
+#ulReiter button.dabei { border-color: #e07af0; } #ulZu { background: #5a2a2a; border-color: #c06a6a; }
+#ulPlan { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; padding: 12px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); }
+#unterlagen h1 { margin: 0; font-size: 22px; } #unterlagen h2 { font-size: 13px; margin: 16px 0 6px; color: #9fb0bd; text-transform: uppercase; letter-spacing: 0.06em; }
+#unterlagen .klein { font-size: 12.5px; color: #9fb0bd; } #unterlagen p { margin: 6px 0 0; line-height: 1.4; }
+.leg { white-space: nowrap; margin-left: 8px; } .leg i { display: inline-block; width: 14px; height: 6px; border-radius: 3px; margin: 0 4px 1px 8px; } .leg i.strich { background: none; border-top: 2px dashed #ef5a4c; height: 0; margin-bottom: 3px; }
+#ulProfil { display: block; width: 100%; height: 230px; margin-top: 8px; border-radius: 10px; touch-action: none; cursor: ew-resize; }
+#ulRegler { display: block; width: 100%; margin: 6px 0 0; touch-action: none; accent-color: #ffdc3c; }
+#ulMitte { display: flex; gap: 12px; margin-top: 10px; } #ulKarte { flex: 1; min-width: 0; height: 330px; border-radius: 10px; display: block; }
+#ulJetzt { width: min(520px, 50%); display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-content: start; }
+#ulJetzt h3 { grid-column: 1 / 3; margin: 0; font-size: 17px; padding: 6px 10px; border-left: 6px solid #7fc4ff; background: #17202a; border-radius: 8px; }
+#ulJetzt div, .ulZahlen div { background: #17202a; border-radius: 8px; padding: 6px 10px; } #ulJetzt small, .ulZahlen small { display: block; color: #9fb0bd; font-size: 11.5px; } #ulJetzt b, .ulZahlen b { font-size: 15px; font-weight: 600; }
+#ulJetzt div.breit { grid-column: 1 / 3; border-left: 6px solid #fff; } #unterlagen .rot, #unterlagen .rot b { color: #ff8a7a; }
+#ulTabRahmen { overflow-x: auto; touch-action: pan-x pan-y; border-radius: 10px; }
+#ulTabelle, .ulTab { border-collapse: collapse; font-size: 13.5px; width: 100%; } #ulTabelle th, #ulTabelle td, .ulTab th, .ulTab td { padding: 6px 9px; text-align: left; border-bottom: 1px solid #26333f; white-space: nowrap; }
+#ulTabelle th, .ulTab th { color: #9fb0bd; font-weight: 600; font-size: 12px; background: #17202a; } #ulTabelle tbody tr { cursor: pointer; }
+#ulTabelle tr.dran, .ulTab tr.dran { background: #1f3a5a; } #ulTabelle td.zeit { color: #ffdc3c; font-weight: 700; } #ulTabelle td.stelle span { color: #cfe0ec; } #unterlagen .fett { font-weight: 700; font-size: 15px; }
+#ulTabelle tr.z-punkt td.stelle b, #ulTabelle tr.z-start td.stelle b, #ulTabelle tr.z-ziel td.stelle b { color: #ff8ad0; }
+#ulTabelle i.punkt { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+#ulFunk { font-size: 14px; } #ulFunk b { color: #f0b8f8; }
+#unterlagen .hinweise div, #unterlagen div.warn { margin-top: 6px; padding: 6px 10px; border-radius: 8px; border-left: 5px solid #ffc43c; background: rgba(14, 19, 24, 0.7); font-size: 14px; } #unterlagen .hinweise div.schlimm { border-color: #ef5a4c; }
+#ulPlatz { flex: 1; min-height: 0; display: flex; }
+#ulPlatzSeite { width: min(440px, 44vw); overflow-y: auto; touch-action: pan-y; padding: 12px 16px 40px max(16px, env(safe-area-inset-left)); background: #17202a; font-size: 14px; }
+#ulPlatzRahmen { position: relative; flex: 1; min-width: 0; } #ulPlatzBild { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#ulAusschnitt { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; } #ulAusschnitt button { background: rgba(23, 32, 42, 0.92); font-size: 14px; padding: 6px 11px; } #ulAusschnitt button.an { background: #1f5fae; }
+.ulZahlen { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; } .ulZahlen div { background: #0f161d; }
+.ulTab td:last-child { white-space: normal; } .ulTab th, .ulTab td { padding: 6px 6px !important; }
+.ulRunde { font-size: 14px; } .ulRunde b { color: #9fd0ff; }
+@media (max-width: 760px) { #ulMitte { flex-direction: column; } #ulJetzt { width: 100%; } #ulKarte { flex: none; height: 260px; } #ulPlatz { flex-direction: column-reverse; } #ulPlatzSeite { width: 100%; flex: 1; } #ulPlatzRahmen { flex: none; height: 46vh; } #ulProfil { height: 190px; } }
+@media (max-height: 500px) { #ulProfil { height: 160px; } #ulKarte { height: 230px; } }

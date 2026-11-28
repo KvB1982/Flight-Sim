@@ -13,6 +13,7 @@ export const TASTEN_HILFE = [
   ['Gamepad / Joystick', 'linker Knüppel = Höhe und Quer, rechter Knüppel = Seitenruder, Abzüge = Gas, A = Bremse, LB / RB = Klappen, Steuerkreuz = Trimmung, Y = Ansicht'],
   ['M / O / 1 2 3', 'Überlandflug: Karte auf und zu / Zeitraffer an und aus / Funkspruch wählen'],
   ['4 / 5 6 / 7', 'Überlandflug: nächstes Funkfeuer einstellen / Kurs am Funkfeuer 5° zurück und vor / Kurs direkt zum Funkfeuer. Im Überlandflug stellen die Ziffern nicht das Gas (dafür W und S)'],
+  ['F1', 'Unterlagen: Flugplan und Flugplatzkarten (das Spiel hält so lange an)'],
   ['F2', 'Flugrekorder: Marke setzen („Hier war es komisch“)'],
   ['X / Y / Enter', 'Der ganze Flug: Schalterbrett / Checkliste auf und zu / nächsten Handgriff erledigen. Zu Fuß: Pfeiltasten gehen und drehen'],
 ];
@@ -33,10 +34,10 @@ export class Eingabe {
     this.wenn = {};                                                                   // Knöpfe: klappenAus, klappenEin, kamera, pause, neu, hilfe
     this.womit = 'Tastatur';
     window.addEventListener('keydown', ev => {
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'PageUp', 'PageDown', 'Enter'].includes(ev.code)) ev.preventDefault();
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'PageUp', 'PageDown', 'Enter', 'F1'].includes(ev.code)) ev.preventDefault();
       if (ev.repeat) return;
       this.taste[ev.code] = true;
-      const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer', F2: 'marke' }[ev.code];
+      const k = { KeyF: 'klappenAus', KeyV: 'klappenEin', KeyC: 'kamera', KeyP: 'pause', KeyN: 'neu', KeyH: 'hilfe', KeyU: 'blickMitte', KeyR: 'weg', Escape: 'pause', KeyX: 'brett', KeyY: 'liste', KeyZ: 'liste', Enter: 'tun', KeyM: 'karte', KeyO: 'raffer', F2: 'marke', F1: 'unterlagen' }[ev.code];
       if (k) this.druecke(k);
       if (/^Digit\d$/.test(ev.code) && this.ziffer && this.ziffer(+ev.code.slice(5))) return;      // im Überlandflug gehören die Ziffern dem Funk und dem Funkfeuer
       if (/^Digit\d$/.test(ev.code)) this.e.gas = ev.code === 'Digit0' ? 1 : +ev.code.slice(5) / 10;

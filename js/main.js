@@ -4,11 +4,12 @@ import { FT, GRAD } from './flugzeuge.js';
 import { mitHilfe, STUFEN, STUFEN_TEXT } from './hilfen.js';
 import { neueLuft, WETTER } from './atmosphaere.js';
 import { PLATZ, bodenHoehe, platzrunde, anflugweg } from './platz.js';
-import { NN } from './region.js';
+import { NN, naechsterPlatz } from './region.js';
 import { grad3, AUSFLUEGE, NAVI_STUFEN } from './navigation.js';
 import { Reise, RAFFER, LITER } from './ueberland.js';
 import { ReiseAnsicht } from './reiseansicht.js';
 import { Planer } from './planer.js';
+import { Unterlagen } from './unterlagen.js';
 import { LEKTIONEN, LEHRERIN, Unterricht, ladeStand, merkeStand, offen } from './schule.js';
 import { maleNachflug } from './nachflug.js';
 import { SCHALTER, neueSysteme, schalte, anlassen, sysSchritt, sysRuder, liter } from './systeme.js';
@@ -200,7 +201,14 @@ eingabe.wenn = {
     if (geher) { const st = geher.nah(f), a = st && st.tun(f, f.sys).find(x => !x.fertig); if (a) stelleTun(a); }
     else { const p = ablauf.liste(f).find(x => !x.ok); if (p && p.tipp) ablauf.tippe(f, p.id, eingabe.e); }
   },
-  pause() { if (imMenue || ergebnisAuf) return; pause = !pause; $('pause').classList.toggle('an', pause); },
+  // Unterlagen: Flugplan und Flugplatzkarten. Im Flug hält das Spiel so lange an, bis man sie wieder zumacht.
+  unterlagen() {
+    if (unterlagen.an) { unterlagen.zu(); return; }
+    if (imMenue || ergebnisAuf || geher) return;
+    ulPause = !pause; pause = true;
+    unterlagen.auf(reise ? { plan: reise.plan, minute: reise.flugZeit / 60, f } : { tab: naechsterPlatz(f.p[0], f.p[2]).id, f });
+  },
+  pause() { if (unterlagen.an) { unterlagen.zu(); return; } if (imMenue || ergebnisAuf) return; pause = !pause; $('pause').classList.toggle('an', pause); },
   neu() { menue(); },
   karte() { ansicht.karteUm(); },
   raffer() { if (!reise || pause || reise.fertig) return; if (reise.raffer) reise.rafferAus('Zeitraffer aus.'); else reise.rafferAn(f); },
@@ -469,6 +477,12 @@ $('bLos').onclick = () => los(null);
 $('bGanz').onclick = () => los('ganz');
 const planer = new Planer(E, merke, plan => los(plan), () => maleMenue(), () => Math.round(ladeZustand(localStorage).sprit / LITER));
 $('bPlan').onclick = () => planer.auf();
+// Die Unterlagen (Flugplan wie bei den Profis, Flugplatzkarten). ulPause merkt sich, ob das Spiel nur für die Unterlagen angehalten wurde.
+let ulPause = false;
+const unterlagen = new Unterlagen(() => WETTER[unterricht ? 'ruhig' : E.wetter], () => { if (ulPause) { ulPause = false; pause = false; } });
+$('bKarten').onclick = () => unterlagen.auf({ tab: 'lerchenfeld' });
+$('plProfi').onclick = () => unterlagen.auf({ plan: planer.plan(), tab: 'plan' });
+$('plKarten').onclick = () => { const p = planer.plan().punkte.filter(x => x.art === 'platz'); unterlagen.auf({ plan: planer.plan(), tab: (p[p.length - 1] || { id: 'lerchenfeld' }).id }); };
 $('bAlles').onclick = () => { E.allesOffen = !E.allesOffen; merke(); maleMenue(); };
 $('eMenue').onclick = menue;
 $('bWeg').onclick = () => { E.weg = !E.weg; merke(); maleMenue(); };
@@ -511,13 +525,13 @@ $('tasten').innerHTML = TASTEN_HILFE.map(([t, was]) => `<div><b>${t}</b><span>${
   gl.addEventListener('wheel', ev => { if (!imMenue && E.kamera === 'hinten') { blick.weit = Math.max(6, Math.min(120, blick.weit * Math.exp(ev.deltaY * 0.0012))); ev.preventDefault(); } }, { passive: false });
 }
 
-const touch = istTouch ? baueTouch(eingabe, { karte: () => eingabe.druecke('karte'), raffer: () => eingabe.druecke('raffer'), brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'),
+const touch = istTouch ? baueTouch(eingabe, { karte: () => eingabe.druecke('karte'), unterlagen: () => eingabe.druecke('unterlagen'), raffer: () => eingabe.druecke('raffer'), brett: () => eingabe.druecke('brett'), liste: () => eingabe.druecke('liste'),
   kamera: () => eingabe.druecke('kamera'), menue, weg: () => eingabe.druecke('weg'), blickMitte: () => kam.mitte(), mitte: () => { neigung.mitte(); empfang.senden({ k: 'mitte' }); melde('Diese Haltung ist jetzt die Mitte', 'info', 2); }, neigen: () => $('bNeigen').onclick() }) : null;
 document.body.classList.toggle('mit-touch', !!touch);
 
 // Zum Testen: __flugsim.angehalten = true hält die eigene Schleife an, step(n) rechnet n Bilder (je 1/60 s) vor.
 window.__flugsim = { tempo, kam, f, E, blick, eingabe, neigung, empfang, welt, STARTS, LEKTIONEN, STELLEN, los, menue, zeigeErgebnis, schreibeFlugbuch, get ablauf() { return ablauf; }, get reise() { return reise;
-  }, planer, ansicht, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; }, rek, maleRekorder };
+  }, planer, ansicht, unterlagen, zeigeReise, get geher() { return geher; }, get unterricht() { return unterricht; }, get spur() { return spur; }, angehalten: false, step(n = 1) { for (let i = 0; i < n; i++) bild(1 / 60, i < n - 1); }, get flug() { return flug; }, rek, maleRekorder };
 if (inApp) empfang.nahStarten();      // in der App wartet das Spiel von Anfang an auf ein iPhone in der Nähe
 maleMenue();
 if (frage.has('lektion')) { const l = LEKTIONEN.find(x => x.id === frage.get('lektion')); if (l) los(l); }
