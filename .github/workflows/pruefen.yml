@@ -1,4 +1,4 @@
-# Bei jedem Pull Request und jedem Stand auf main laufen die sechs Prüfwerkzeuge von allein.
+# Bei jedem Pull Request und jedem Stand auf main laufen die sieben Prüfwerkzeuge von allein.
 # Sie brauchen nur Node, keine Pakete und keinen Browser.
 name: Prüfwerkzeuge
 on:
@@ -30,3 +30,5 @@ jobs:
         run: node tools/rekorder.mjs selbst
       - name: Stimmen – jeder gesprochene Satz hat seine Aufnahme
         run: node tools/sprache.mjs streng
+      - name: Autopilot
+        run: node tools/autopilot.mjs

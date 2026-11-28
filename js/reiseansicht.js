@@ -3,7 +3,7 @@
 import { NM } from './region.js';
 import { grad3, wickel, kursVon, FEUER, feuerAnzeige, punktNah, REISE } from './navigation.js';
 import { RAFFER } from './ueberland.js';
-import { RUF, laut } from './funk.js';
+import { RUF, laut, pilotText } from './funk.js';
 import { Karte } from './karte.js';
 import { bediene } from './planer.js';
 import { maleNavi, maleZettel, maleFeuer, maleRaffer } from './instrumente.js';
@@ -105,10 +105,12 @@ export class ReiseAnsicht {
   // ---------------------------------------------------------------- Funk-Kasten: was zuletzt gesagt wurde und die drei Antworten
   maleFunk(sek) {
     const F = this.reise.funk, d = this.d;
+    let du = false;        // hast du gerade selbst gefunkt? Dann wartet der Flugleiter, bis du fertig bist
     for (const s of F.sagen.splice(0)) {
       this.verlauf.push(s); if (this.verlauf.length > 3) this.verlauf.shift();
       this.funkZahl++; this.funkZeit = 14; this.funkTipp = s.tipp || '';
-      if (s.wer === 'Info') { d.stimmeAus(); d.sprich(s.text, 'info', laut(s.text)); }
+      if (s.wer === 'Du') { d.stimmeAus(); d.sprich(pilotText(s.text), 'pilot'); du = true; }
+      if (s.wer === 'Info') { if (!du) d.stimmeAus(); d.sprich(s.text, 'info', laut(s.text)); }
     }
     if (!F.frage) { this.funkZeit -= sek; if (this.funkZeit <= 0 && this.verlauf.length) { this.verlauf = []; this.funkZahl++; } }
     const stand = [F.nr, F.stufe, !!F.frage, this.funkZahl].join();

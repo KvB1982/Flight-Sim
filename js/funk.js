@@ -34,6 +34,31 @@ export function funkStuecke(plaetze, winde) {
   return s;
 }
 const HIMMEL = ['nördlich', 'nordöstlich', 'östlich', 'südöstlich', 'südlich', 'südwestlich', 'westlich', 'nordwestlich'];
+// Auch der Pilot (du) hat eine Stimme: Seine Funksprüche werden genauso aus Stücken zusammengesetzt (sprache/pilot/<name>.mp3).
+// plaetze = die Flugplätze, namen = alle Namen, die als Wegpunkt vorkommen können (aus PUNKTE in navigation.js).
+export function pilotStuecke(plaetze, namen) {
+  const z = t => t.replace(/\d/g, d => ZIFFER[d] + ' ').trim(), kurz = n => n.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '_');
+  const s = [{ name: 'ruf', text: RUF, laut: RUF_LAUT + ',' }, { name: 'lerche', text: 'Lerche 172', laut: 'Lerche eins sieben zwo,' }, { name: 'an_der', text: 'an der', laut: 'an der' },
+    { name: 'abflugbereit', text: 'abflugbereit', laut: 'abflugbereit.' }, { name: 'ich_fliege_los', text: 'ich fliege jetzt los', laut: 'ich fliege jetzt los.' },
+    { name: 'erbitte_landung', text: 'erbitte Landung', laut: 'erbitte Landung.' }, { name: 'qnh', text: 'QNH 1013', laut: 'Q N H eins null eins drei,' }, { name: 'ich_starte', text: 'ich starte', laut: 'ich starte,' },
+    { name: 'verstanden', text: 'Verstanden, danke', laut: 'Verstanden, danke.' }, { name: 'verlaesst', text: 'verlässt die Platzrunde Richtung', laut: 'verlässt die Platzrunde Richtung' },
+    { name: 'wiederhoeren', text: 'auf Wiederhören', laut: 'auf Wiederhören!' }, { name: 'erbitte_rollen', text: 'erbitte Rollen zum Vorfeld', laut: 'erbitte Rollen zum Vorfeld.' },
+    { name: 'endanflug', text: 'Endanflug', laut: 'Endanflug' }, { name: 'gegenanflug', text: 'Gegenanflug', laut: 'Gegenanflug' }, { name: 'zur_landung', text: 'zur Landung', laut: 'zur Landung.' },
+    { name: 'alles_klar', text: 'Alles klar, ich komme', laut: 'Alles klar, ich komme,' }, { name: 'gelandet', text: 'gelandet, rolle zum Vorfeld. Danke', laut: 'gelandet, rolle zum Vorfeld. Danke!' },
+    { name: 'startinfo', text: 'erbitte Startinformation', laut: 'erbitte Startinformation.' }, { name: 'sichtflug', text: 'Sichtflug nach', laut: 'Sichtflug nach' }, { name: 'rundflug', text: 'Rundflug über', laut: 'Rundflug über' },
+    { name: 'des_platzes', text: 'des Platzes', laut: 'des Platzes,' }, { name: 'fuss', text: 'Fuß', laut: 'Fuß,' }];
+  const bahnen = new Set();
+  for (const P of plaetze) { s.push({ name: 'info_' + P.id, text: `${P.name} Info`, laut: `${P.name} Info,` }, { name: 'hallo_' + P.id, text: `Hallo ${P.name}`, laut: `Hallo ${P.name},` }); P.bahnen.forEach(b => bahnen.add(b)); }
+  for (const b of [...bahnen].sort()) s.push({ name: 'piste_' + b, text: `Piste ${b}`, laut: `Piste ${z(b)},` });
+  for (let n = 1; n <= 9; n++) s.push({ name: 'meilen_' + n, text: `${n} Meilen`, laut: n === 1 ? 'eine Meile' : `${ZIFFER[n]} Meilen` });
+  for (const h of HIMMEL) s.push({ name: kurz(h), text: h, laut: h });
+  for (let n = 1; n <= 13; n++) s.push({ name: 'tausend_' + n, text: `${n} tausend`, laut: `${ZAHL[n]}tausend` });
+  for (let n = 1; n <= 9; n++) s.push({ name: 'hundert_' + n, text: `${n} hundert`, laut: `${ZAHL[n]}hundert` });
+  for (const n of new Set(namen)) s.push({ name: 'ort_' + kurz(n), text: n, laut: n + ',' });
+  return s;
+}
+// Macht aus einem Funkspruch des Piloten den Text, der sich aus Stücken zusammensetzen lässt: „4500 Fuß“ → „4 tausend 5 hundert Fuß“
+export const pilotText = text => text.replace(/(\d+) Fuß/, (m, f) => [f >= 1000 ? Math.floor(f / 1000) + ' tausend' : '', f % 1000 >= 100 ? Math.floor(f % 1000 / 100) + ' hundert' : '', 'Fuß'].filter(Boolean).join(' '));
 // In welcher Himmelsrichtung vom Platz ist das Flugzeug? (+x ist Westen)
 export const richtungVon = (P, x, z) => HIMMEL[Math.round(((Math.atan2(-(x - P.mx), z - P.mz) / GRAD) % 360 + 360) % 360 / 45) % 8];
 

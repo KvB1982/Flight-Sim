@@ -16,14 +16,15 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync } from
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LEKTIONEN, LEHRERIN } from '../js/schule.js';
-import { funkStuecke, windText, SPRUECHE, RUF } from '../js/funk.js';
+import { funkStuecke, pilotStuecke, pilotText, windText, SPRUECHE, RUF } from '../js/funk.js';
+import { PUNKTE } from '../js/navigation.js';
 import { PLAETZE } from '../js/region.js';
 import { WETTER } from '../js/atmosphaere.js';
 import { teileVon } from '../js/sprache.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Wer spricht mit welcher Stimme? fest = wie gleichmäßig (0 = lebendig, 1 = ruhig)
-export const STIMMEN = { jule: { stimme: 'Matilda', fest: 0.5 }, info: { stimme: 'George', fest: 0.7 }, ansage: { stimme: 'River', fest: 0.8 } };
+export const STIMMEN = { jule: { stimme: 'Matilda', fest: 0.5 }, info: { stimme: 'George', fest: 0.7 }, ansage: { stimme: 'River', fest: 0.8 }, pilot: { stimme: 'Will', fest: 0.7 } };
 
 const saetze = [];                       // { wer, name, text, laut }
 const kurz = t => t.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -51,6 +52,8 @@ for (const m of quelle.matchAll(/'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g)) {
 // 3. Der Flugleiter: Stücke, aus denen jeder Funkspruch zusammengesetzt wird
 const winde = Object.values(WETTER).map(w => windText(w.aus, w.kn));
 for (const s of funkStuecke(PLAETZE, winde)) saetze.push({ wer: 'info', ...s });
+// 3b. Der Pilot: seine eigenen Funksprüche, auch aus Stücken
+for (const s of pilotStuecke(PLAETZE, PUNKTE.map(p => p.name))) saetze.push({ wer: 'pilot', ...s });
 // 4. Höhen-Ansage vor dem Aufsetzen (js/flug.js)
 for (const [zahl, wort] of [['100', 'Einhundert.'], ['50', 'Fünfzig.'], ['20', 'Zwanzig.'], ['10', 'Zehn.']]) saetze.push({ wer: 'ansage', name: zahl, text: zahl, laut: wort });
 
@@ -80,6 +83,16 @@ let kaputt = 0;
 for (const S of PLAETZE) for (const Z of PLAETZE) for (const wind of winde) for (const e of [0, 1]) {
   const l = { start: S, ziel: Z, bahnStart: S.bahnen[e], bahnZiel: Z.bahnen[e], bahnJetzt: Z.bahnen[e], wind };
   for (const text of [...SPRUECHE.map(x => x.info(l)), `${RUF}, bitte wiederholen Sie.`, `${RUF}, negativ, ich wiederhole.`]) if (!teileVon('info', text, alleInfo)) { kaputt++; console.log('  ✗ Funkspruch lässt sich nicht zusammensetzen: ' + text); }
+}
+
+// Dasselbe für den Piloten: jede Antwort, die man antippen kann (auch die falschen)
+const allePilot = Object.fromEntries(saetze.filter(s => s.wer === 'pilot').map(s => ['pilot/' + s.name, s.text]));
+const richtungen = ['nördlich', 'nordöstlich', 'östlich', 'südöstlich', 'südlich', 'südwestlich', 'westlich', 'nordwestlich'];
+const probe = l => { for (const S of SPRUECHE) for (const text of [...S.frage(l), ...(S.zurueck ? S.zurueck(l) : [])]) if (!teileVon('pilot', pilotText(text), allePilot)) { kaputt++; console.log('  ✗ Funkspruch des Piloten lässt sich nicht zusammensetzen: ' + text); } };
+for (const S of PLAETZE) for (const Z of PLAETZE) for (const e of [0, 1]) for (let i = 0; i < 130; i++) {
+  const ort = PUNKTE[i % PUNKTE.length].name;
+  probe({ start: S, ziel: Z, bahnStart: S.bahnen[e], bahnStartFalsch: S.bahnen[1 - e], bahnZiel: Z.bahnen[e], andereZiel: Z.bahnen[1 - e], bahnJetzt: Z.bahnen[e], naechster: ort,
+    vorhaben: i % 2 ? `Rundflug über ${ort}` : `Sichtflug nach ${Z.name}`, meilen: 1 + i % 9, richtung: richtungen[i % 8], fuss: 1000 + i * 100 });
 }
 
 if (arg('json')) console.log(JSON.stringify(fehlt));

@@ -5,10 +5,11 @@ import { SPRACHE } from '../sprache/liste.js';
 import { teileVon, dateiVon } from './sprache.js';
 
 // Zahlen zum Einstellen
-const STIMME_LAUT = { jule: 1.0, info: 1.5, ansage: 0.9 };   // Lautstärke je Stimme (der Funk verliert im Filter Kraft, deshalb mehr)
+const STIMME_LAUT = { jule: 1.0, info: 1.5, pilot: 1.4, ansage: 0.9 };   // Lautstärke je Stimme (der Funk verliert im Filter Kraft, deshalb mehr)
 const LUECKE = 0.07;              // Pause in Sekunden zwischen zwei Stücken eines Funkspruchs
 const FUNK_TIEF = 420, FUNK_HOCH = 2700;   // Funkgerät: alles unter und über diesen Tonhöhen (Hertz) wird abgeschnitten
 const FUNK_KRATZEN = 2.2;         // wie stark die Stimme im Funk verzerrt (1 = gar nicht)
+const amFunk = wer => wer === 'info' || wer === 'pilot';   // diese Stimmen kommen aus dem Funkgerät
 const FUNK_RAUSCHEN = 0.03;       // Rauschen, solange der Flugleiter spricht
 const FUNK_KLICK = 0.13;          // kurzes lautes Rauschen, wenn der Funk auf- und zugeht
 
@@ -43,6 +44,13 @@ export class Klang {
     const nah = !f.amBoden && f.ias > 8 && f.alpha > (f.T.caMax + f.T.caMaxKlappe * f.klappen - f.T.ca0 - f.T.caKlappe * f.klappen) / f.T.caAnstieg - 0.045;
     this.hornLaut.gain.setTargetAtTime(an && nah ? 0.06 : 0, t, 0.02);
   }
+  // zwei kurze Töne: Der Autopilot hat sich abgeschaltet oder warnt – jetzt fliegt der Mensch
+  piep() {
+    if (!this.ctx || this.stumm) return;
+    const c = this.ctx, t = c.currentTime;
+    for (const [ab, hz] of [[0, 880], [0.16, 660]]) { const o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t + ab); g.gain.linearRampToValueAtTime(0.08, t + ab + 0.01); g.gain.linearRampToValueAtTime(0.0001, t + ab + 0.13); o.connect(g); g.connect(this.aus); o.start(t + ab); o.stop(t + ab + 0.15); }
+  }
   // kurzer dumpfer Schlag beim Aufsetzen, lauter bei harter Landung
   rumms(stark) {
     if (!this.ctx || this.stumm) return;
@@ -62,10 +70,10 @@ export class Klang {
     rf.type = 'bandpass'; rf.frequency.value = 1800; rf.Q.value = 0.5; rl.gain.value = 0; r.connect(rf); rf.connect(rl); rl.connect(aus); r.start();
     this.funk = { ein, rauschen: rl };
   }
-  // Wohin eine Stimme spielt: der Flugleiter durch das Funkgerät, alle anderen direkt
+  // Wohin eine Stimme spielt: Flugleiter und Pilot durch das Funkgerät, alle anderen direkt
   stimmeZiel(wer) {
     const c = this.ctx;
-    if (wer === 'info') { if (!this.funk) this.funkBauen(); return this.funk.ein; }
+    if (amFunk(wer)) { if (!this.funk) this.funkBauen(); return this.funk.ein; }
     if (!this.direkt) { this.direkt = c.createGain(); this.direkt.connect(c.destination); }
     return this.direkt;
   }
@@ -82,7 +90,7 @@ export class Klang {
   ladeVor(anfang) { if (this.ctx && !this.stumm) for (const n in SPRACHE) if (n.startsWith(anfang)) this.lade(n); }
   // Spielt Aufnahmen hintereinander ab und ruft `fertig`, wenn die letzte zu Ende ist
   spiele(wer, puffer, fertig) {
-    const c = this.ctx, ziel = this.stimmeZiel(wer), laut = STIMME_LAUT[wer] || 1, funk = wer === 'info';
+    const c = this.ctx, ziel = this.stimmeZiel(wer), laut = STIMME_LAUT[wer] || 1, funk = amFunk(wer);
     let t = c.currentTime + 0.03 + (funk ? 0.08 : 0);
     const t0 = t;
     puffer.forEach((p, i) => {
@@ -104,7 +112,7 @@ export class Klang {
       setTimeout(ende, 2500 + text.length * 110);      // manche Geräte melden das Ende nie
     } catch (e) { ende(); }
   }
-  // Etwas sagen. wer = 'jule', 'info' oder 'ansage' (ohne: immer die Stimme des Geräts); ersatz = so soll es das Gerät lesen, wenn keine Aufnahme da ist.
+  // Etwas sagen. wer = 'jule', 'info', 'pilot' oder 'ansage' (ohne: immer die Stimme des Geräts); ersatz = so soll es das Gerät lesen, wenn keine Aufnahme da ist.
   // Sätze kommen in eine Warteschlange und werden nacheinander gesprochen; nur die kurze Höhen-Ansage kommt sofort.
   sprich(text, wer, ersatz) {
     if (this.stumm) return;
@@ -120,8 +128,10 @@ export class Klang {
     if (this.spricht || !this.schlange.length) return;
     const a = this.spricht = this.schlange.shift(), nr = ++this.sprechNr;
     const fertig = () => { if (nr === this.sprechNr) { this.spricht = null; this.weiter(); } };
-    if (!a.namen) return this.geraet(a.text, fertig);
-    Promise.all(a.namen.map(n => this.lade(n))).then(p => { if (nr !== this.sprechNr) return; if (p.includes(null)) this.geraet(a.text, fertig); else this.spiele(a.wer, p, fertig); });
+    // Fehlt eine Aufnahme, liest das Gerät. Nur der Pilot bleibt dann still – sonst würde die eigene Stimme plötzlich wie ein Roboter klingen.
+    const ersatz = () => a.wer === 'pilot' ? fertig() : this.geraet(a.text, fertig);
+    if (!a.namen) return ersatz();
+    Promise.all(a.namen.map(n => this.lade(n))).then(p => { if (nr !== this.sprechNr) return; if (p.includes(null)) ersatz(); else this.spiele(a.wer, p, fertig); });
   }
   // Sofort still: was gerade gesprochen wird und was noch wartet
   still() {
