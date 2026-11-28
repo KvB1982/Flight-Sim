@@ -24,6 +24,8 @@ jobs:
         run: node tools/ablauf.mjs
       - name: Überlandflug
         run: node tools/ueberland.mjs
+      - name: Flugplan und Flugplatzkarten
+        run: node tools/flugplan.mjs
       - name: Flugrekorder
         run: node tools/rekorder.mjs selbst
       - name: Stimmen – jeder gesprochene Satz hat seine Aufnahme

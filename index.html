@@ -61,9 +61,26 @@
     <h2>Wetter</h2><div class="wahl" id="plWetter"></div>
     <h2>Navigation</h2><div class="wahl" id="plNavi"></div><p id="plNaviText" class="hinweis"></p>
     <h2>Wo geht es los?</h2><div class="wahl" id="plStart"></div><p id="plStartText" class="hinweis"></p>
+    <h2>Unterlagen</h2><div class="wahl"><button id="plProfi">📋 Flugplan wie bei den Profis</button><button id="plKarten">🛬 Flugplatzkarten</button></div>
     <h2>Die Rechnung</h2><div id="plBeine"></div><p id="plSumme" class="hinweis"></p><div id="plHinweise"></div>
     <button id="plLos">Losfliegen</button><button id="plZurueck">Zurück zum Menü</button>
   </div>
+</div>
+<div id="unterlagen">
+  <div id="ulKopf"><div id="ulReiter"></div><button id="ulZu">✕ zu</button></div>
+  <div id="ulPlan">
+    <h1>Flugdurchführungsplan</h1><p id="ulPlanKopf" class="hinweis"></p>
+    <p class="hinweis klein">Fahre mit dem Finger oder der Maus über das Höhenprofil (oder zieh am Regler): Für jede Minute des Flugs siehst du Höhe, Kurs, Tempo, den nächsten Punkt und den Sprit.
+      <span class="leg"><i style="background:#5fd07a"></i>steigen <i style="background:#7fc4ff"></i>Reiseflug <i style="background:#ffc43c"></i>sinken <i style="background:#ff9a5a"></i>Platzrunde <i style="background:#5d6b44"></i>Gelände <i class="strich"></i>sichere Höhe</span></p>
+    <canvas id="ulProfil"></canvas><input id="ulRegler" type="range" min="0" max="1000" value="0">
+    <div id="ulMitte"><div id="ulJetzt"></div><canvas id="ulKarte"></canvas></div>
+    <h2>Der Plan Punkt für Punkt</h2><p class="hinweis klein">Tippe eine Zeile an, dann springt der Zeiger dorthin.</p>
+    <div id="ulTabRahmen"><table id="ulTabelle"></table></div>
+    <p id="ulSprit" class="hinweis klein"></p>
+    <h2>Funk – wann du dich meldest</h2><ol id="ulFunk"></ol>
+    <div id="ulHinweise" class="hinweise"></div>
+  </div>
+  <div id="ulPlatz"><div id="ulPlatzSeite"></div><div id="ulPlatzRahmen"><canvas id="ulPlatzBild"></canvas><div id="ulAusschnitt"></div></div></div>
 </div>
 <div id="pause">Pause<br><small>Tippen oder P = weiter · N = Menü</small></div>
 <div id="menue">
@@ -85,6 +102,7 @@
     <p class="hinweis">Von Platz zu Platz durch das Alpenvorland: Auf der Karte eine Strecke planen (Kurs, Zeit, Sprit), Wegpunkte abfliegen, am Flugplatz funken und am Ziel landen –
       auf Wunsch als ganzer Flug mit Außencheck, Tanken und Checklisten. Sechs Flugplätze zwischen Augsburg, München, dem Inn und den Bergen.</p>
     <button id="bPlan">Flug planen</button>
+    <button id="bKarten">🛬 Flugplatzkarten ansehen</button>
     <h2 class="gross">Freier Flug</h2>
     <h2>Wo geht es los?</h2><div class="wahl" id="wStart"></div><p id="startText" class="hinweis"></p>
     <h2>Wetter</h2><div class="wahl" id="wWetter"></div>
